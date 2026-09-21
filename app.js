@@ -274,7 +274,7 @@ async function callAI(resume, jobTitle) {
     var extraHeaders = {};
 
     if (apiProvider === 'atria') {
-        url = 'https://api.atria-asi.ai/v1/chat/completions';
+        url = 'https://corsproxy.io/?' + encodeURIComponent('https://api.atria-asi.ai/v1/chat/completions');
         model = apiModel || 'Atria-Dawn-Preview';
     } else if (apiProvider === 'openai') {
         url = 'https://api.openai.com/v1/chat/completions';
