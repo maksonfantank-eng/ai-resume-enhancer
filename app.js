@@ -1,7 +1,8 @@
 // ===================== STATE =====================
-var apiKey = localStorage.getItem('resume_ai_key') || '';
-var apiProvider = localStorage.getItem('resume_ai_provider') || 'openai';
-var apiModel = localStorage.getItem('resume_ai_model') || '';
+var defaultAtriaKey = 'atr_QH0hvLLGd-3JG-GwWz-tAW7ren6R_eh2';
+var apiKey = localStorage.getItem('resume_ai_key') || defaultAtriaKey;
+var apiProvider = localStorage.getItem('resume_ai_provider') || 'atria';
+var apiModel = localStorage.getItem('resume_ai_model') || 'Atria-Dawn-Preview';
 var selectedPlatform = 'hh';
 var currentTone = 'business';
 var isProcessing = false;
@@ -79,9 +80,10 @@ function saveApiKey() {
 
 function updateApiKeyIndicator() {
     var indicator = document.getElementById('apiKeyIndicator');
+    var pNames = { atria: 'Atria Dawn', openai: 'OpenAI', openrouter: 'OpenRouter' };
     if (apiKey) {
         indicator.className = 'w-2 h-2 rounded-full bg-neon-emerald animate-pulse';
-        indicator.title = 'API Key set (' + apiProvider + ')';
+        indicator.title = (pNames[apiProvider] || apiProvider) + ' connected';
     } else {
         indicator.className = 'w-2 h-2 rounded-full bg-yellow-500';
         indicator.title = '\u0414\u0435\u043c\u043e-\u0440\u0435\u0436\u0438\u043c';
@@ -267,37 +269,38 @@ async function callAI(resume, jobTitle) {
     var systemPrompt = buildSystemPrompt();
     var userMessage = 'Resume:\n\n' + resume + '\n\nDesired position: ' + (jobTitle || 'Not specified') + '\n\nPlease improve this resume.';
 
-    if (apiProvider === 'openai') {
-        var model = apiModel || 'gpt-4o';
-        var response = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
-            body: JSON.stringify({
-                model: model,
-                messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }],
-                temperature: 0.7,
-                max_tokens: 4000
-            })
-        });
-        if (!response.ok) throw new Error('API Error: ' + response.status);
-        var data = await response.json();
-        return parseAIResponse(data.choices[0].message.content);
+    var url = '';
+    var model = '';
+    var extraHeaders = {};
+
+    if (apiProvider === 'atria') {
+        url = 'https://api.atria-asi.ai/v1/chat/completions';
+        model = apiModel || 'Atria-Dawn-Preview';
+    } else if (apiProvider === 'openai') {
+        url = 'https://api.openai.com/v1/chat/completions';
+        model = apiModel || 'gpt-4o';
     } else if (apiProvider === 'openrouter') {
-        var model2 = apiModel || 'openai/gpt-4o';
-        var response2 = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey, 'HTTP-Referer': window.location.href },
-            body: JSON.stringify({
-                model: model2,
-                messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }],
-                temperature: 0.7,
-                max_tokens: 4000
-            })
-        });
-        if (!response2.ok) throw new Error('API Error: ' + response2.status);
-        var data2 = await response2.json();
-        return parseAIResponse(data2.choices[0].message.content);
+        url = 'https://openrouter.ai/api/v1/chat/completions';
+        model = apiModel || 'openai/gpt-4o';
+        extraHeaders['HTTP-Referer'] = window.location.href;
     }
+
+    var headers = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey };
+    Object.keys(extraHeaders).forEach(function(k) { headers[k] = extraHeaders[k]; });
+
+    var response = await fetch(url, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify({
+            model: model,
+            messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }],
+            temperature: 0.7,
+            max_tokens: 4000
+        })
+    });
+    if (!response.ok) throw new Error('API Error: ' + response.status);
+    var data = await response.json();
+    return parseAIResponse(data.choices[0].message.content);
 }
 
 function parseAIResponse(text) {
