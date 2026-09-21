@@ -104,11 +104,21 @@
                     <h1 class="font-display font-bold text-lg bg-gradient-to-r from-neon-purple via-neon-indigo to-neon-cyan bg-clip-text text-transparent">AI Resume Enhancer</h1>
                 </div>
                 <div class="flex items-center gap-3">
-                    <button onclick="openSettings()" class="glass-input px-3 py-1.5 rounded-lg text-sm text-gray-400 hover:text-gray-200 flex items-center gap-2 transition-all hover:border-neon-purple/40">
-                        <i data-lucide="settings" class="w-4 h-4"></i>
-                        <span class="hidden sm:inline">API Key</span>
-                    </button>
-                    <div id="apiKeyIndicator" class="w-2 h-2 rounded-full bg-yellow-500" title="Demo Mode"></div>
+                    <div id="authLoggedOut">
+                        <button onclick="openAuthModal('login')" class="glass-input px-3 py-1.5 rounded-lg text-sm text-gray-400 hover:text-gray-200 flex items-center gap-2 transition-all hover:border-neon-purple/40">
+                            <i data-lucide="log-in" class="w-4 h-4"></i>
+                            <span class="hidden sm:inline">Войти</span>
+                        </button>
+                    </div>
+                    <div id="authLoggedIn" class="hidden flex items-center gap-2">
+                        <span id="authUserEmail" class="text-xs text-gray-500 hidden sm:inline"></span>
+                        <button onclick="openAuthModal('profile')" class="glass-input px-2 py-1.5 rounded-lg text-sm text-gray-400 hover:text-gray-200 flex items-center gap-2 transition-all hover:border-neon-purple/40">
+                            <i data-lucide="user" class="w-4 h-4"></i>
+                        </button>
+                        <button onclick="logout()" class="glass-input px-2 py-1.5 rounded-lg text-sm text-gray-400 hover:text-red-400 flex items-center gap-2 transition-all hover:border-red-500/40">
+                            <i data-lucide="log-out" class="w-4 h-4"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -265,40 +275,95 @@
         </div>
     </main>
 
-    <div id="settingsModal" class="hidden fixed inset-0 z-[100] modal-overlay flex items-center justify-center p-4">
+    <!-- AUTH MODAL -->
+    <div id="authModal" class="hidden fixed inset-0 z-[100] modal-overlay flex items-center justify-center p-4">
         <div class="glass-card rounded-2xl p-6 w-full max-w-md relative">
-            <button onclick="closeSettings()" class="absolute top-4 right-4 text-gray-500 hover:text-gray-300 transition-colors">
+            <button onclick="closeAuthModal()" class="absolute top-4 right-4 text-gray-500 hover:text-gray-300 transition-colors">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
-            <h3 class="font-display font-bold text-lg text-white mb-1">Настройки API</h3>
-            <p class="text-xs text-gray-500 mb-5">Введите ключ для использования реального ИИ. Без ключа работает демо-режим.</p>
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-xs font-medium text-gray-400 mb-2">Провайдер</label>
-                <select id="apiProvider" class="glass-input w-full rounded-xl p-3 text-sm text-gray-200">
-                        <option value="atria" class="bg-surface-100">Atria Dawn (по умолчанию)</option>
-                        <option value="openai" class="bg-surface-100">OpenAI (GPT-4o)</option>
-                        <option value="openrouter" class="bg-surface-100">OpenRouter</option>
-                    </select>
+
+            <!-- LOGIN FORM -->
+            <div id="authLoginForm">
+                <h3 class="font-display font-bold text-lg text-white mb-1">Вход</h3>
+                <p class="text-xs text-gray-500 mb-5">Войдите, чтобы сохранять результаты</p>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-400 mb-2">Email</label>
+                        <input id="loginEmail" type="email" placeholder="your@email.com" class="glass-input w-full rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-400 mb-2">Пароль</label>
+                        <input id="loginPassword" type="password" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;" class="glass-input w-full rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600">
+                    </div>
+                    <div id="loginError" class="hidden text-xs text-center py-2 rounded-lg bg-red-500/10 text-red-400"></div>
+                    <div class="flex gap-3 pt-2">
+                        <button onclick="doLogin()" class="btn-gradient flex-1 rounded-xl py-2.5 font-medium text-white text-sm">Войти</button>
+                    </div>
+                    <p class="text-xs text-center text-gray-600">Нет аккаунта? <button onclick="showRegister()" class="text-neon-purple hover:text-neon-cyan transition-colors">Зарегистрироваться</button></p>
                 </div>
-                <div>
-                    <label class="block text-xs font-medium text-gray-400 mb-2">API Key</label>
-                    <input id="apiKeyInput" type="password" placeholder="sk-..." class="glass-input w-full rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600">
+            </div>
+
+            <!-- REGISTER FORM -->
+            <div id="authRegisterForm" class="hidden">
+                <h3 class="font-display font-bold text-lg text-white mb-1">Регистрация</h3>
+                <p class="text-xs text-gray-500 mb-5">Создайте аккаунт для полного доступа</p>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-400 mb-2">Email</label>
+                        <input id="regEmail" type="email" placeholder="your@email.com" class="glass-input w-full rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-400 mb-2">Пароль</label>
+                        <input id="regPassword" type="password" placeholder="Минимум 4 символа" class="glass-input w-full rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-400 mb-2">Повторите пароль</label>
+                        <input id="regPassword2" type="password" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;" class="glass-input w-full rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600">
+                    </div>
+                    <div id="regError" class="hidden text-xs text-center py-2 rounded-lg bg-red-500/10 text-red-400"></div>
+                    <div class="flex gap-3 pt-2">
+                        <button onclick="doRegister()" class="btn-gradient flex-1 rounded-xl py-2.5 font-medium text-white text-sm">Зарегистрироваться</button>
+                    </div>
+                    <p class="text-xs text-center text-gray-600">Есть аккаунт? <button onclick="showLogin()" class="text-neon-purple hover:text-neon-cyan transition-colors">Войти</button></p>
                 </div>
-                <div>
-                    <label class="block text-xs font-medium text-gray-400 mb-2">Cloudflare Worker URL (CORS proxy, опционально)</label>
-                    <input id="apiProxy" type="url" placeholder="https://my-proxy.workers.dev/?url=" class="glass-input w-full rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600">
-                    <p class="text-[10px] text-gray-600 mt-1">Нужен для работы из браузера. Без него работает демо-режим.</p>
+            </div>
+
+            <!-- CONFIRM EMAIL FORM -->
+            <div id="authConfirmForm" class="hidden">
+                <h3 class="font-display font-bold text-lg text-white mb-1">Подтверждение email</h3>
+                <p class="text-xs text-gray-500 mb-5">Код подтверждения отправлен на <span id="confirmEmailDisplay" class="text-neon-cyan"></span></p>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-400 mb-2">Код подтверждения</label>
+                        <input id="confirmCode" type="text" placeholder="XXXX" maxlength="4" class="glass-input w-full rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600 text-center text-lg tracking-[0.5em]">
+                    </div>
+                    <div id="confirmError" class="hidden text-xs text-center py-2 rounded-lg bg-red-500/10 text-red-400"></div>
+                    <div class="flex gap-3 pt-2">
+                        <button onclick="doConfirm()" class="btn-gradient flex-1 rounded-xl py-2.5 font-medium text-white text-sm">Подтвердить</button>
+                    </div>
+                    <div id="confirmCodeDisplay" class="text-center">
+                        <p class="text-[10px] text-gray-600 mb-1">Для демо-режима код:</p>
+                        <p id="confirmCodeValue" class="text-xl font-mono font-bold text-neon-emerald tracking-[0.3em]"></p>
+                    </div>
                 </div>
-                <div>
-                    <label class="block text-xs font-medium text-gray-400 mb-2">Модель (опционально)</label>
-                    <input id="apiModel" type="text" placeholder="gpt-4o (по умолчанию)" class="glass-input w-full rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600">
+            </div>
+
+            <!-- PROFILE -->
+            <div id="authProfileForm" class="hidden">
+                <h3 class="font-display font-bold text-lg text-white mb-1">Профиль</h3>
+                <p class="text-xs text-gray-500 mb-5">Управление аккаунтом</p>
+                <div class="space-y-4">
+                    <div class="glass-input rounded-xl p-4 flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-neon-purple to-neon-cyan flex items-center justify-center text-white font-bold text-sm" id="profileAvatar"></div>
+                        <div>
+                            <p id="profileEmail" class="text-sm text-gray-200 font-medium"></p>
+                            <p id="profileRole" class="text-xs text-gray-500"></p>
+                        </div>
+                    </div>
+                    <div class="text-center">
+                        <button onclick="logout()" class="text-sm text-red-400 hover:text-red-300 transition-colors">Выйти из аккаунта</button>
+                    </div>
                 </div>
-                <div class="flex gap-3 pt-2">
-                    <button onclick="saveApiKey()" class="btn-gradient flex-1 rounded-xl py-2.5 font-medium text-white text-sm">Сохранить</button>
-                    <button onclick="closeSettings()" class="glass-input flex-1 rounded-xl py-2.5 font-medium text-gray-400 text-sm hover:text-white transition-colors">Отмена</button>
-                </div>
-                <div id="apiKeyStatus" class="hidden text-xs text-center py-2 rounded-lg"></div>
             </div>
         </div>
     </div>
