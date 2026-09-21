@@ -130,13 +130,14 @@ function showProfile() {
     document.getElementById('authRegisterForm').classList.add('hidden');
     document.getElementById('authConfirmForm').classList.add('hidden');
     document.getElementById('authProfileForm').classList.remove('hidden');
-    document.getElementById('profileEmail').textContent = currentUser.email;
-    document.getElementById('profileRole').textContent = isAdmin() ? '\u0410\u0434\u043c\u0438\u043d\u0438\u0441\u0442\u0440\u0430\u0442\u043e\u0440' : '\u041f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044c';
-    document.getElementById('profileAvatar').textContent = currentUser.email.charAt(0).toUpperCase();
-    // Update balance in profile
+    var emailEl = document.getElementById('profileEmail');
+    var roleEl = document.getElementById('profileRole');
+    var avatarEl = document.getElementById('profileAvatar');
+    if (emailEl) emailEl.textContent = currentUser.email;
     var balance = getUserBalance(currentUser.email);
-    var profileRoleEl = document.getElementById('profileRole');
-    profileRoleEl.textContent = (isAdmin() ? '\u0410\u0434\u043c\u0438\u043d\u0438\u0441\u0442\u0440\u0430\u0442\u043e\u0442' : '\u041f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044c') + ' | \u0411\u0430\u043b\u0430\u043d\u0441: ' + balance + ' \u20BD';
+    var roleText = isAdmin() ? '\u0410\u0434\u043c\u0438\u043d\u0438\u0441\u0442\u0440\u0430\u0442\u043e\u0440' : '\u041f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044c';
+    if (roleEl) roleEl.textContent = roleText + ' | \u0411\u0430\u043b\u0430\u043d\u0441: ' + balance + ' \u20BD';
+    if (avatarEl) avatarEl.textContent = currentUser.email.charAt(0).toUpperCase();
 }
 
 // ===================== PAYMENT =====================
@@ -364,21 +365,21 @@ function updateAuthUI() {
     var adminBtn = document.getElementById('adminPanelBtn');
     var costEl = document.getElementById('enhanceBtnCost');
     if (currentUser) {
-        loggedOut.classList.add('hidden');
-        loggedIn.classList.remove('hidden');
+        if (loggedOut) loggedOut.classList.add('hidden');
+        if (loggedIn) loggedIn.classList.remove('hidden');
         var balance = getUserBalance(currentUser.email);
-        balanceEl.textContent = balance + ' \u20BD';
+        if (balanceEl) balanceEl.textContent = balance + ' \u20BD';
         if (isAdmin()) {
-            adminBtn.classList.remove('hidden');
-            costEl.textContent = '(Admin \u2014 \u0431\u0435\u0441\u043f\u043b\u0430\u0442\u043d\u043e)';
+            if (adminBtn) adminBtn.classList.remove('hidden');
+            if (costEl) costEl.textContent = '(Admin \u2014 \u0431\u0435\u0441\u043f\u043b\u0430\u0442\u043d\u043e)';
         } else {
-            adminBtn.classList.add('hidden');
-            costEl.textContent = '(\u0441\u0442\u043e\u0438\u043c\u043e\u0441\u0442\u044c: 50 \u20BD)';
+            if (adminBtn) adminBtn.classList.add('hidden');
+            if (costEl) costEl.textContent = '(\u0441\u0442\u043e\u0438\u043c\u043e\u0441\u0442\u044c: 50 \u20BD)';
         }
     } else {
-        loggedOut.classList.remove('hidden');
-        loggedIn.classList.add('hidden');
-        costEl.textContent = '';
+        if (loggedOut) loggedOut.classList.remove('hidden');
+        if (loggedIn) loggedIn.classList.add('hidden');
+        if (costEl) costEl.textContent = '';
     }
 }
 
