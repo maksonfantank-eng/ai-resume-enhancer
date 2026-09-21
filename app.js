@@ -15,11 +15,12 @@ var currentUser = JSON.parse(localStorage.getItem('resume_current_user') || 'nul
 var pendingRegistration = null;
 var ADMIN_EMAIL = 'maksonfantank@gmail.ru';
 var ADMIN_PASSWORD = '7777';
+var COST_PER_REQUEST = 50;
 
 function getUsers() {
     var users = JSON.parse(localStorage.getItem('resume_users') || '[]');
     if (!users.some(function(u) { return u.email === ADMIN_EMAIL; })) {
-        users.push({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD, role: 'admin', confirmed: true });
+        users.push({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD, role: 'admin', confirmed: true, balance: 999999, totalSpent: 0 });
         localStorage.setItem('resume_users', JSON.stringify(users));
     }
     return users;
@@ -27,12 +28,29 @@ function getUsers() {
 
 function saveUsers(users) { localStorage.setItem('resume_users', JSON.stringify(users)); }
 
+function getUserBalance(email) {
+    var users = getUsers();
+    var user = users.find(function(u) { return u.email === email; });
+    return user ? (user.balance || 0) : 0;
+}
+
+function updateUserBalance(email, amount) {
+    var users = getUsers();
+    var user = users.find(function(u) { return u.email === email; });
+    if (user) {
+        user.balance = (user.balance || 0) + amount;
+        if (amount < 0) user.totalSpent = (user.totalSpent || 0) + Math.abs(amount);
+        saveUsers(users);
+    }
+    return user ? user.balance : 0;
+}
+
+function isAdmin() { return currentUser && currentUser.role === 'admin'; }
+
 // ===================== INIT =====================
 document.addEventListener('DOMContentLoaded', function() {
     lucide.createIcons();
     updateAuthUI();
-    if (apiModel) document.getElementById('apiModel') && (document.getElementById('apiModel').value = apiModel);
-    if (PROXY_URL) document.getElementById('apiProxy') && (document.getElementById('apiProxy').value = PROXY_URL);
 });
 
 // ===================== UTILITY =====================
@@ -113,8 +131,141 @@ function showProfile() {
     document.getElementById('authConfirmForm').classList.add('hidden');
     document.getElementById('authProfileForm').classList.remove('hidden');
     document.getElementById('profileEmail').textContent = currentUser.email;
-    document.getElementById('profileRole').textContent = currentUser.role === 'admin' ? '\u0410\u0434\u043c\u0438\u043d\u0438\u0441\u0442\u0440\u0430\u0442\u043e\u0440' : '\u041f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044c';
+    document.getElementById('profileRole').textContent = isAdmin() ? '\u0410\u0434\u043c\u0438\u043d\u0438\u0441\u0442\u0440\u0430\u0442\u043e\u0440' : '\u041f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044c';
     document.getElementById('profileAvatar').textContent = currentUser.email.charAt(0).toUpperCase();
+    // Update balance in profile
+    var balance = getUserBalance(currentUser.email);
+    var profileRoleEl = document.getElementById('profileRole');
+    profileRoleEl.textContent = (isAdmin() ? '\u0410\u0434\u043c\u0438\u043d\u0438\u0441\u0442\u0440\u0430\u0442\u043e\u0442' : '\u041f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044c') + ' | \u0411\u0430\u043b\u0430\u043d\u0441: ' + balance + ' \u20BD';
+}
+
+// ===================== PAYMENT =====================
+var selectedTopUpAmount = 50;
+var selectedPayMethod = 'card';
+
+function openPaymentModal() {
+    if (!currentUser) { openAuthModal('login'); return; }
+    document.getElementById('paymentModal').classList.remove('hidden');
+    document.getElementById('paymentTopUpForm').classList.remove('hidden');
+    document.getElementById('paymentProcessingForm').classList.add('hidden');
+    document.getElementById('paymentSuccessForm').classList.add('hidden');
+    document.getElementById('paymentError').classList.add('hidden');
+    document.getElementById('customTopUp').value = '';
+    selectedTopUpAmount = 50;
+    document.querySelectorAll('.topup-btn').forEach(function(b) {
+        b.classList.toggle('border-neon-emerald/50', b.dataset.amount === '50');
+    });
+}
+
+function closePaymentModal() { document.getElementById('paymentModal').classList.add('hidden'); }
+
+function selectTopUp(amount) {
+    selectedTopUpAmount = amount;
+    document.getElementById('customTopUp').value = '';
+    document.querySelectorAll('.topup-btn').forEach(function(b) {
+        b.classList.toggle('border-neon-emerald/50', parseInt(b.dataset.amount) === amount);
+    });
+}
+
+function selectPayMethod(el) {
+    document.querySelectorAll('.pay-method-btn').forEach(function(b) {
+        b.classList.remove('border-neon-purple/30');
+        b.classList.add('border-transparent');
+    });
+    el.classList.remove('border-transparent');
+    el.classList.add('border-neon-purple/30');
+    selectedPayMethod = el.dataset.method;
+}
+
+function processPayment() {
+    var customVal = document.getElementById('customTopUp').value;
+    var amount = customVal ? parseInt(customVal) : selectedTopUpAmount;
+    var errEl = document.getElementById('paymentError');
+    errEl.classList.add('hidden');
+    if (!amount || amount < 50) {
+        errEl.textContent = '\u041c\u0438\u043d\u0438\u043c\u0430\u043b\u044c\u043d\u0430\u044f \u0441\u0443\u043c\u043c\u0430 \u043e\u043f\u043b\u0430\u0442\u044b \u2014 50 \u20BD';
+        errEl.classList.remove('hidden');
+        return;
+    }
+    document.getElementById('paymentTopUpForm').classList.add('hidden');
+    document.getElementById('paymentProcessingForm').classList.remove('hidden');
+    setTimeout(function() {
+        var newBalance = updateUserBalance(currentUser.email, amount);
+        document.getElementById('paymentProcessingForm').classList.add('hidden');
+        document.getElementById('paymentSuccessForm').classList.remove('hidden');
+        document.getElementById('paidAmount').textContent = amount;
+        document.getElementById('newBalance').textContent = newBalance + ' \u20BD';
+        updateAuthUI();
+    }, 2000);
+}
+
+// ===================== ADMIN PANEL =====================
+function openAdminPanel() {
+    if (!isAdmin()) return;
+    document.getElementById('adminModal').classList.remove('hidden');
+    var savedKey = localStorage.getItem('resume_ai_key') || '';
+    document.getElementById('adminApiKey').value = savedKey;
+    loadUsersList();
+    loadStats();
+}
+
+function closeAdminPanel() { document.getElementById('adminModal').classList.add('hidden'); }
+
+function toggleAdminKeyVisibility() {
+    var input = document.getElementById('adminApiKey');
+    input.type = input.type === 'password' ? 'text' : 'password';
+}
+
+function saveAdminApiKey() {
+    var key = document.getElementById('adminApiKey').value.trim();
+    if (key) {
+        apiKey = key;
+        localStorage.setItem('resume_ai_key', key);
+        var status = document.getElementById('adminKeyStatus');
+        status.className = 'text-xs text-center py-2 rounded-lg bg-neon-emerald/10 text-neon-emerald';
+        status.textContent = '\u041a\u043b\u044e\u0447 \u0441\u043e\u0445\u0440\u0430\u043d\u0451\u043d!';
+        status.classList.remove('hidden');
+        setTimeout(function() { status.classList.add('hidden'); }, 2000);
+    }
+}
+
+function testAdminApiKey() {
+    var key = document.getElementById('adminApiKey').value.trim();
+    if (!key) { showToast('\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043a\u043b\u044e\u0447', 'error'); return; }
+    var status = document.getElementById('adminKeyStatus');
+    status.className = 'text-xs text-center py-2 rounded-lg bg-neon-cyan/10 text-neon-cyan';
+    status.textContent = '\u041f\u0440\u043e\u0432\u0435\u0440\u043a\u0430...';
+    status.classList.remove('hidden');
+    fetch('https://api.atria-asi.ai/v1/models', { headers: { 'Authorization': 'Bearer ' + key } })
+        .then(function(r) { return r.ok ? 'OK' : 'Error ' + r.status; })
+        .catch(function() { return 'CORS \u043e\u0448\u0438\u0431\u043a\u0430 (\u043a\u043b\u044e\u0447 \u043c\u043e\u0436\u0435\u0442 \u0440\u0430\u0431\u043e\u0442\u0430\u0442\u044c)'; })
+        .then(function(msg) {
+            status.className = 'text-xs text-center py-2 rounded-lg bg-neon-emerald/10 text-neon-emerald';
+            status.textContent = '\u0420\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442: ' + msg;
+        });
+}
+
+function loadUsersList() {
+    var users = getUsers();
+    var list = document.getElementById('usersList');
+    var count = document.getElementById('userCount');
+    count.textContent = users.length + ' \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u0435\u0439';
+    list.innerHTML = '';
+    users.forEach(function(u) {
+        var div = document.createElement('div');
+        div.className = 'flex items-center justify-between glass-input rounded-lg p-2.5';
+        var roleLabel = u.role === 'admin' ? '<span class="text-yellow-400 text-[10px] font-medium">\u0410\u0414\u041c\u0418\u041d</span>' : '<span class="text-gray-600 text-[10px]">\u041f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044c</span>';
+        var balance = u.balance || 0;
+        div.innerHTML = '<div class="flex-1 min-w-0"><p class="text-xs text-gray-300 truncate">' + u.email + '</p><div class="flex items-center gap-2 mt-0.5">' + roleLabel + ' <span class="text-[10px] text-neon-emerald">' + balance + ' \u20BD</span></div></div>';
+        list.appendChild(div);
+    });
+}
+
+function loadStats() {
+    var users = getUsers();
+    document.getElementById('statTotalUsers').textContent = users.length;
+    var totalRevenue = users.reduce(function(sum, u) { return sum + (u.totalSpent || 0); }, 0);
+    document.getElementById('statTotalRevenue').textContent = totalRevenue + ' \u20BD';
 }
 
 function generateConfirmCode() {
@@ -209,14 +360,25 @@ function logout() {
 function updateAuthUI() {
     var loggedOut = document.getElementById('authLoggedOut');
     var loggedIn = document.getElementById('authLoggedIn');
-    var emailEl = document.getElementById('authUserEmail');
+    var balanceEl = document.getElementById('balanceDisplay');
+    var adminBtn = document.getElementById('adminPanelBtn');
+    var costEl = document.getElementById('enhanceBtnCost');
     if (currentUser) {
         loggedOut.classList.add('hidden');
         loggedIn.classList.remove('hidden');
-        emailEl.textContent = currentUser.email;
+        var balance = getUserBalance(currentUser.email);
+        balanceEl.textContent = balance + ' \u20BD';
+        if (isAdmin()) {
+            adminBtn.classList.remove('hidden');
+            costEl.textContent = '(Admin \u2014 \u0431\u0435\u0441\u043f\u043b\u0430\u0442\u043d\u043e)';
+        } else {
+            adminBtn.classList.add('hidden');
+            costEl.textContent = '(\u0441\u0442\u043e\u0438\u043c\u043e\u0441\u0442\u044c: 50 \u20BD)';
+        }
     } else {
         loggedOut.classList.remove('hidden');
         loggedIn.classList.add('hidden');
+        costEl.textContent = '';
     }
 }
 
@@ -662,6 +824,21 @@ async function enhanceResume() {
     if (!resume) { showToast('\u0412\u0441\u0442\u0430\u0432\u044c\u0442\u0435 \u0442\u0435\u043a\u0441\u0442 \u0440\u0435\u0437\u044e\u043c\u0435', 'error'); return; }
     if (resume.length < 50) { showToast('\u0420\u0435\u0437\u044e\u043c\u0435 \u0441\u043b\u0438\u0448\u043a\u043e\u043c \u043a\u043e\u0440\u043e\u0442\u043a\u043e\u0435 (\u043c\u0438\u043d. 50 \u0441\u0438\u043c\u0432\u043e\u043b\u043e\u0432)', 'error'); return; }
     if (isProcessing) return;
+
+    // Balance check for non-admin users
+    if (currentUser && !isAdmin()) {
+        var balance = getUserBalance(currentUser.email);
+        if (balance < COST_PER_REQUEST) {
+            showToast('\u041d\u0435\u0434\u043e\u0441\u0442\u0430\u0442\u043e\u0447\u043d\u043e \u0441\u0440\u0435\u0434\u0441\u0442\u0432. \u041d\u0443\u0436\u043d\u043e ' + COST_PER_REQUEST + ' \u20BD, \u0431\u0430\u043b\u0430\u043d\u0441: ' + balance + ' \u20BD', 'error');
+            openPaymentModal();
+            return;
+        }
+    } else if (!currentUser) {
+        showToast('\u0412\u043e\u0439\u0434\u0438\u0442\u0435 \u0438\u043b\u0438 \u0437\u0430\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0438\u0440\u0443\u0439\u0442\u0435\u0441\u044c \u0434\u043b\u044f \u0434\u043e\u0441\u0442\u0443\u043f\u0430', 'error');
+        openAuthModal('login');
+        return;
+    }
+
     isProcessing = true;
     var btn = document.getElementById('enhanceBtn');
     btn.disabled = true;
@@ -683,9 +860,15 @@ async function enhanceResume() {
                 result = await generateDemoResult(resume, jobTitle);
             }
         } else {
-            showToast('\u0414\u0435\u043c\u043e-\u0440\u0435\u0436\u0438\u043c: \u0430\u043d\u0430\u043b\u0438\u0437 \u0432\u0430\u0448\u0435\u0433\u043e \u0440\u0435\u0437\u044e\u043c\u0435', 'info');
             result = await generateDemoResult(resume, jobTitle);
         }
+
+        // Deduct balance for non-admin users
+        if (currentUser && !isAdmin()) {
+            updateUserBalance(currentUser.email, -COST_PER_REQUEST);
+            updateAuthUI();
+        }
+
         lastResult = result.resume;
         lastChanges = result.changes;
         setATSScore(result.score);
@@ -712,8 +895,9 @@ async function enhanceResume() {
     } finally {
         isProcessing = false;
         btn.disabled = false;
-        btn.innerHTML = '<i data-lucide="wand-2" class="w-5 h-5"></i> \u0423\u043b\u0443\u0447\u0448\u0438\u0442\u044c \u0440\u0435\u0437\u044e\u043c\u0435 \u0447\u0435\u0440\u0435\u0437 \u0418\u0418';
+        btn.innerHTML = '<i data-lucide="wand-2" class="w-5 h-5"></i> <span id="enhanceBtnText">\u0423\u043b\u0443\u0447\u0448\u0438\u0442\u044c \u0440\u0435\u0437\u044e\u043c\u0435 \u0447\u0435\u0440\u0435\u0437 \u0418\u0418</span> <span id="enhanceBtnCost" class="text-xs opacity-70 font-normal"></span>';
         lucide.createIcons({ nodes: [btn] });
+        updateAuthUI();
     }
 }
 
