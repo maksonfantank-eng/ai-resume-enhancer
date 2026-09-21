@@ -3,6 +3,7 @@ var defaultAtriaKey = 'atr_QH0hvLLGd-3JG-GwWz-tAW7ren6R_eh2';
 var apiKey = localStorage.getItem('resume_ai_key') || defaultAtriaKey;
 var apiProvider = localStorage.getItem('resume_ai_provider') || 'atria';
 var apiModel = localStorage.getItem('resume_ai_model') || 'Atria-Dawn-Preview';
+var PROXY_URL = localStorage.getItem('resume_ai_proxy') || '';
 var selectedPlatform = 'hh';
 var currentTone = 'business';
 var isProcessing = false;
@@ -18,6 +19,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('apiKeyInput').value = '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022';
     }
     if (apiModel) document.getElementById('apiModel').value = apiModel;
+    if (PROXY_URL) document.getElementById('apiProxy').value = PROXY_URL;
 });
 
 // ===================== UTILITY =====================
@@ -62,14 +64,17 @@ function saveApiKey() {
     var key = document.getElementById('apiKeyInput').value.trim();
     var provider = document.getElementById('apiProvider').value;
     var model = document.getElementById('apiModel').value.trim();
+    var proxy = document.getElementById('apiProxy').value.trim();
     if (key && key !== '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022') {
         apiKey = key;
         localStorage.setItem('resume_ai_key', key);
     }
     apiProvider = provider;
     apiModel = model;
+    PROXY_URL = proxy;
     localStorage.setItem('resume_ai_provider', provider);
     localStorage.setItem('resume_ai_model', model);
+    localStorage.setItem('resume_ai_proxy', proxy);
     updateApiKeyIndicator();
     var status = document.getElementById('apiKeyStatus');
     status.className = 'text-xs text-center py-2 rounded-lg bg-neon-emerald/10 text-neon-emerald';
@@ -274,7 +279,8 @@ async function callAI(resume, jobTitle) {
     var extraHeaders = {};
 
     if (apiProvider === 'atria') {
-        url = 'https://corsproxy.io/?' + encodeURIComponent('https://api.atria-asi.ai/v1/chat/completions');
+        var targetUrl = 'https://api.atria-asi.ai/v1/chat/completions';
+        url = PROXY_URL ? PROXY_URL + encodeURIComponent(targetUrl) : targetUrl;
         model = apiModel || 'Atria-Dawn-Preview';
     } else if (apiProvider === 'openai') {
         url = 'https://api.openai.com/v1/chat/completions';
@@ -342,7 +348,13 @@ async function enhanceResume() {
     try {
         var result;
         if (apiKey) {
-            result = await callAI(resume, jobTitle);
+            try {
+                result = await callAI(resume, jobTitle);
+            } catch (apiErr) {
+                console.warn('API call failed, falling back to demo:', apiErr);
+                showToast('API \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u0435\u043d (\u0441\u0435\u0440\u0432\u0435\u0440 CORS). \u0418\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0435\u0442\u0441\u044f \u043b\u043e\u043a\u0430\u043b\u044c\u043d\u044b\u0439 \u0430\u043d\u0430\u043b\u0438\u0437.', 'info');
+                result = await generateDemoResult(resume, jobTitle);
+            }
         } else {
             showToast('\u0414\u0435\u043c\u043e-\u0440\u0435\u0436\u0438\u043c: \u0430\u043d\u0430\u043b\u0438\u0437 \u0432\u0430\u0448\u0435\u0433\u043e \u0440\u0435\u0437\u044e\u043c\u0435', 'info');
             result = await generateDemoResult(resume, jobTitle);
