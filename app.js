@@ -10,16 +10,29 @@ var isProcessing = false;
 var lastResult = null;
 var lastChanges = null;
 
+// ===================== AUTH STATE =====================
+var currentUser = JSON.parse(localStorage.getItem('resume_current_user') || 'null');
+var pendingRegistration = null;
+var ADMIN_EMAIL = 'maksonfantank@gmail.ru';
+var ADMIN_PASSWORD = '7777';
+
+function getUsers() {
+    var users = JSON.parse(localStorage.getItem('resume_users') || '[]');
+    if (!users.some(function(u) { return u.email === ADMIN_EMAIL; })) {
+        users.push({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD, role: 'admin', confirmed: true });
+        localStorage.setItem('resume_users', JSON.stringify(users));
+    }
+    return users;
+}
+
+function saveUsers(users) { localStorage.setItem('resume_users', JSON.stringify(users)); }
+
 // ===================== INIT =====================
 document.addEventListener('DOMContentLoaded', function() {
     lucide.createIcons();
-    updateApiKeyIndicator();
-    document.getElementById('apiProvider').value = apiProvider;
-    if (apiKey) {
-        document.getElementById('apiKeyInput').value = '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022';
-    }
-    if (apiModel) document.getElementById('apiModel').value = apiModel;
-    if (PROXY_URL) document.getElementById('apiProxy').value = PROXY_URL;
+    updateAuthUI();
+    if (apiModel) document.getElementById('apiModel') && (document.getElementById('apiModel').value = apiModel);
+    if (PROXY_URL) document.getElementById('apiProxy') && (document.getElementById('apiProxy').value = PROXY_URL);
 });
 
 // ===================== UTILITY =====================
@@ -53,45 +66,157 @@ function togglePlatform(el) {
     selectedPlatform = el.dataset.platform;
 }
 
-// ===================== SETTINGS =====================
-function openSettings() { document.getElementById('settingsModal').classList.remove('hidden'); }
-function closeSettings() {
-    document.getElementById('settingsModal').classList.add('hidden');
-    document.getElementById('apiKeyStatus').classList.add('hidden');
+// ===================== SETTINGS (legacy API) =====================
+function openSettings() { openAuthModal('profile'); }
+function closeSettings() { closeAuthModal(); }
+
+// ===================== AUTH =====================
+function openAuthModal(tab) {
+    document.getElementById('authModal').classList.remove('hidden');
+    document.getElementById('authLoginForm').classList.add('hidden');
+    document.getElementById('authRegisterForm').classList.add('hidden');
+    document.getElementById('authConfirmForm').classList.add('hidden');
+    document.getElementById('authProfileForm').classList.add('hidden');
+    ['loginError', 'regError', 'confirmError'].forEach(function(id) {
+        var el = document.getElementById(id); if (el) el.classList.add('hidden');
+    });
+    if (tab === 'login') document.getElementById('authLoginForm').classList.remove('hidden');
+    else if (tab === 'register') document.getElementById('authRegisterForm').classList.remove('hidden');
+    else if (tab === 'confirm') document.getElementById('authConfirmForm').classList.remove('hidden');
+    else if (tab === 'profile') showProfile();
 }
 
-function saveApiKey() {
-    var key = document.getElementById('apiKeyInput').value.trim();
-    var provider = document.getElementById('apiProvider').value;
-    var model = document.getElementById('apiModel').value.trim();
-    var proxy = document.getElementById('apiProxy').value.trim();
-    if (key && key !== '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022') {
-        apiKey = key;
-        localStorage.setItem('resume_ai_key', key);
+function closeAuthModal() { document.getElementById('authModal').classList.add('hidden'); }
+
+function showLogin() {
+    document.getElementById('authLoginForm').classList.remove('hidden');
+    document.getElementById('authRegisterForm').classList.add('hidden');
+    document.getElementById('authConfirmForm').classList.add('hidden');
+}
+
+function showRegister() {
+    document.getElementById('authLoginForm').classList.add('hidden');
+    document.getElementById('authRegisterForm').classList.remove('hidden');
+    document.getElementById('authConfirmForm').classList.add('hidden');
+}
+
+function showConfirm() {
+    document.getElementById('authLoginForm').classList.add('hidden');
+    document.getElementById('authRegisterForm').classList.add('hidden');
+    document.getElementById('authConfirmForm').classList.remove('hidden');
+}
+
+function showProfile() {
+    if (!currentUser) { showLogin(); return; }
+    document.getElementById('authLoginForm').classList.add('hidden');
+    document.getElementById('authRegisterForm').classList.add('hidden');
+    document.getElementById('authConfirmForm').classList.add('hidden');
+    document.getElementById('authProfileForm').classList.remove('hidden');
+    document.getElementById('profileEmail').textContent = currentUser.email;
+    document.getElementById('profileRole').textContent = currentUser.role === 'admin' ? '\u0410\u0434\u043c\u0438\u043d\u0438\u0441\u0442\u0440\u0430\u0442\u043e\u0440' : '\u041f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044c';
+    document.getElementById('profileAvatar').textContent = currentUser.email.charAt(0).toUpperCase();
+}
+
+function generateConfirmCode() {
+    return String(Math.floor(1000 + Math.random() * 9000));
+}
+
+function doRegister() {
+    var email = document.getElementById('regEmail').value.trim().toLowerCase();
+    var pass = document.getElementById('regPassword').value;
+    var pass2 = document.getElementById('regPassword2').value;
+    var errEl = document.getElementById('regError');
+    errEl.classList.add('hidden');
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        errEl.textContent = '\u041d\u0435\u043a\u043e\u0440\u0440\u0435\u043a\u0442\u043d\u044b\u0439 email';
+        errEl.classList.remove('hidden'); return;
     }
-    apiProvider = provider;
-    apiModel = model;
-    PROXY_URL = proxy;
-    localStorage.setItem('resume_ai_provider', provider);
-    localStorage.setItem('resume_ai_model', model);
-    localStorage.setItem('resume_ai_proxy', proxy);
-    updateApiKeyIndicator();
-    var status = document.getElementById('apiKeyStatus');
-    status.className = 'text-xs text-center py-2 rounded-lg bg-neon-emerald/10 text-neon-emerald';
-    status.textContent = '\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u044b!';
-    status.classList.remove('hidden');
-    setTimeout(function() { closeSettings(); }, 1000);
+    if (pass.length < 4) {
+        errEl.textContent = '\u041f\u0430\u0440\u043e\u043b\u044c \u043c\u0438\u043d\u0438\u043c\u0443\u043c 4 \u0441\u0438\u043c\u0432\u043e\u043b\u0430';
+        errEl.classList.remove('hidden'); return;
+    }
+    if (pass !== pass2) {
+        errEl.textContent = '\u041f\u0430\u0440\u043e\u043b\u0438 \u043d\u0435 \u0441\u043e\u0432\u043f\u0430\u0434\u0430\u044e\u0442';
+        errEl.classList.remove('hidden'); return;
+    }
+    var users = getUsers();
+    if (users.some(function(u) { return u.email === email; })) {
+        errEl.textContent = '\u041f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044c \u0443\u0436\u0435 \u0437\u0430\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0438\u0440\u043e\u0432\u0430\u043d';
+        errEl.classList.remove('hidden'); return;
+    }
+    var code = generateConfirmCode();
+    pendingRegistration = { email: email, password: pass, code: code };
+    document.getElementById('confirmEmailDisplay').textContent = email;
+    document.getElementById('confirmCodeValue').textContent = code;
+    showConfirm();
+    showToast('\u041a\u043e\u0434 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d (\u0434\u0435\u043c\u043e-\u0440\u0435\u0436\u0438\u043c)', 'info');
 }
 
-function updateApiKeyIndicator() {
-    var indicator = document.getElementById('apiKeyIndicator');
-    var pNames = { atria: 'Atria Dawn', openai: 'OpenAI', openrouter: 'OpenRouter' };
-    if (apiKey) {
-        indicator.className = 'w-2 h-2 rounded-full bg-neon-emerald animate-pulse';
-        indicator.title = (pNames[apiProvider] || apiProvider) + ' connected';
+function doConfirm() {
+    var code = document.getElementById('confirmCode').value.trim();
+    var errEl = document.getElementById('confirmError');
+    errEl.classList.add('hidden');
+    if (!pendingRegistration) { errEl.textContent = '\u041d\u0435\u0442 \u0430\u043a\u0442\u0438\u0432\u043d\u043e\u0439 \u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u0438'; errEl.classList.remove('hidden'); return; }
+    if (code !== pendingRegistration.code) {
+        errEl.textContent = '\u041d\u0435\u0432\u0435\u0440\u043d\u044b\u0439 \u043a\u043e\u0434';
+        errEl.classList.remove('hidden'); return;
+    }
+    var users = getUsers();
+    users.push({ email: pendingRegistration.email, password: pendingRegistration.password, role: 'user', confirmed: true });
+    saveUsers(users);
+    currentUser = { email: pendingRegistration.email, role: 'user' };
+    localStorage.setItem('resume_current_user', JSON.stringify(currentUser));
+    pendingRegistration = null;
+    closeAuthModal();
+    updateAuthUI();
+    showToast('\u0410\u043a\u043a\u0430\u0443\u043d\u0442 \u0441\u043e\u0437\u0434\u0430\u043d! \u0414\u043e\u0431\u0440\u043e \u043f\u043e\u0436\u0430\u043b\u043e\u0432\u0430\u0442\u044c!', 'success');
+}
+
+function doLogin() {
+    var email = document.getElementById('loginEmail').value.trim().toLowerCase();
+    var pass = document.getElementById('loginPassword').value;
+    var errEl = document.getElementById('loginError');
+    errEl.classList.add('hidden');
+    if (!email || !pass) {
+        errEl.textContent = '\u0417\u0430\u043f\u043e\u043b\u043d\u0438\u0442\u0435 \u0432\u0441\u0435 \u043f\u043e\u043b\u044f';
+        errEl.classList.remove('hidden'); return;
+    }
+    var users = getUsers();
+    var user = users.find(function(u) { return u.email === email && u.password === pass; });
+    if (!user) {
+        errEl.textContent = '\u041d\u0435\u0432\u0435\u0440\u043d\u044b\u0439 email \u0438\u043b\u0438 \u043f\u0430\u0440\u043e\u043b\u044c';
+        errEl.classList.remove('hidden'); return;
+    }
+    if (!user.confirmed) {
+        errEl.textContent = '\u041f\u043e\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u0435 email';
+        errEl.classList.remove('hidden'); return;
+    }
+    currentUser = { email: user.email, role: user.role };
+    localStorage.setItem('resume_current_user', JSON.stringify(currentUser));
+    closeAuthModal();
+    updateAuthUI();
+    showToast('\u0414\u043e\u0431\u0440\u043e \u043f\u043e\u0436\u0430\u043b\u043e\u0432\u0430\u0442\u044c, ' + user.email + '!', 'success');
+}
+
+function logout() {
+    currentUser = null;
+    localStorage.removeItem('resume_current_user');
+    updateAuthUI();
+    closeAuthModal();
+    showToast('\u0412\u044b \u0432\u044b\u0448\u043b\u0438 \u0438\u0437 \u0430\u043a\u043a\u0430\u0443\u043d\u0442\u0430', 'info');
+}
+
+function updateAuthUI() {
+    var loggedOut = document.getElementById('authLoggedOut');
+    var loggedIn = document.getElementById('authLoggedIn');
+    var emailEl = document.getElementById('authUserEmail');
+    if (currentUser) {
+        loggedOut.classList.add('hidden');
+        loggedIn.classList.remove('hidden');
+        emailEl.textContent = currentUser.email;
     } else {
-        indicator.className = 'w-2 h-2 rounded-full bg-yellow-500';
-        indicator.title = '\u0414\u0435\u043c\u043e-\u0440\u0435\u0436\u0438\u043c';
+        loggedOut.classList.remove('hidden');
+        loggedIn.classList.add('hidden');
     }
 }
 
