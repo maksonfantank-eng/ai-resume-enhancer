@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Resume Enhancer</title>
+    <title>Naimis-bot</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -101,7 +101,7 @@
                     <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-neon-purple to-neon-cyan flex items-center justify-center">
                         <i data-lucide="sparkles" class="w-5 h-5 text-white"></i>
                     </div>
-                    <h1 class="font-display font-bold text-lg bg-gradient-to-r from-neon-purple via-neon-indigo to-neon-cyan bg-clip-text text-transparent">AI Resume Enhancer</h1>
+                    <h1 class="font-display font-bold text-lg bg-gradient-to-r from-neon-purple via-neon-indigo to-neon-cyan bg-clip-text text-transparent">Naimis-bot</h1>
                 </div>
                 <div class="flex items-center gap-3">
                     <div id="authLoggedOut">
@@ -111,7 +111,15 @@
                         </button>
                     </div>
                     <div id="authLoggedIn" class="hidden flex items-center gap-2">
-                        <span id="authUserEmail" class="text-xs text-gray-500 hidden sm:inline"></span>
+                        <div id="adminPanelBtn" class="hidden">
+                            <button onclick="openAdminPanel()" class="glass-input px-2 py-1.5 rounded-lg text-sm text-yellow-400 hover:text-yellow-300 flex items-center gap-1 transition-all hover:border-yellow-500/40" title="Админ-панель">
+                                <i data-lucide="shield" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                        <button onclick="openPaymentModal()" class="glass-input px-2 py-1.5 rounded-lg text-sm text-neon-emerald hover:text-neon-cyan flex items-center gap-1 transition-all hover:border-neon-emerald/40" title="Пополнить баланс">
+                            <i data-lucide="wallet" class="w-4 h-4"></i>
+                            <span id="balanceDisplay" class="text-xs font-medium">0 &#8381;</span>
+                        </button>
                         <button onclick="openAuthModal('profile')" class="glass-input px-2 py-1.5 rounded-lg text-sm text-gray-400 hover:text-gray-200 flex items-center gap-2 transition-all hover:border-neon-purple/40">
                             <i data-lucide="user" class="w-4 h-4"></i>
                         </button>
@@ -175,7 +183,8 @@
 
                 <button id="enhanceBtn" onclick="enhanceResume()" class="btn-gradient w-full rounded-xl py-4 font-display font-bold text-white text-base tracking-wide flex items-center justify-center gap-3">
                     <i data-lucide="wand-2" class="w-5 h-5"></i>
-                    Улучшить резюме через ИИ
+                    <span id="enhanceBtnText">Улучшить резюме через ИИ</span>
+                    <span id="enhanceBtnCost" class="text-xs opacity-70 font-normal"></span>
                 </button>
             </div>
 
@@ -362,6 +371,126 @@
                     </div>
                     <div class="text-center">
                         <button onclick="logout()" class="text-sm text-red-400 hover:text-red-300 transition-colors">Выйти из аккаунта</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PAYMENT MODAL -->
+    <div id="paymentModal" class="hidden fixed inset-0 z-[100] modal-overlay flex items-center justify-center p-4">
+        <div class="glass-card rounded-2xl p-6 w-full max-w-md relative">
+            <button onclick="closePaymentModal()" class="absolute top-4 right-4 text-gray-500 hover:text-gray-300 transition-colors">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+
+            <!-- TOP UP FORM -->
+            <div id="paymentTopUpForm">
+                <h3 class="font-display font-bold text-lg text-white mb-1">Пополнение баланса</h3>
+                <p class="text-xs text-gray-500 mb-5">Один запрос улучшения резюме стоит <span class="text-neon-emerald font-medium">50 &#8381;</span></p>
+                <div class="space-y-4">
+                    <div class="grid grid-cols-3 gap-2">
+                        <button onclick="selectTopUp(50)" class="topup-btn glass-input rounded-xl p-3 text-center text-sm text-gray-300 hover:text-white transition-all hover:border-neon-purple/40" data-amount="50">50 &#8381;</button>
+                        <button onclick="selectTopUp(150)" class="topup-btn glass-input rounded-xl p-3 text-center text-sm text-gray-300 hover:text-white transition-all hover:border-neon-purple/40" data-amount="150">150 &#8381;</button>
+                        <button onclick="selectTopUp(300)" class="topup-btn glass-input rounded-xl p-3 text-center text-sm text-gray-300 hover:text-white transition-all hover:border-neon-purple/40 border-neon-emerald/50" data-amount="300">300 &#8381;</button>
+                        <button onclick="selectTopUp(500)" class="topup-btn glass-input rounded-xl p-3 text-center text-sm text-gray-300 hover:text-white transition-all hover:border-neon-purple/40" data-amount="500">500 &#8381;</button>
+                        <button onclick="selectTopUp(1000)" class="topup-btn glass-input rounded-xl p-3 text-center text-sm text-gray-300 hover:text-white transition-all hover:border-neon-purple/40" data-amount="1000">1 000 &#8381;</button>
+                        <button onclick="selectTopUp(3000)" class="topup-btn glass-input rounded-xl p-3 text-center text-sm text-gray-300 hover:text-white transition-all hover:border-neon-purple/40" data-amount="3000">3 000 &#8381;</button>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-400 mb-2">Или введите сумму</label>
+                        <input id="customTopUp" type="number" min="50" step="10" placeholder="50" class="glass-input w-full rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600" oninput="document.querySelectorAll('.topup-btn').forEach(function(b){b.classList.remove('border-neon-emerald/50')})">
+                    </div>
+                    <div class="glass-input rounded-xl p-4 space-y-3">
+                        <p class="text-xs font-medium text-gray-400">Способ оплаты</p>
+                        <div class="flex gap-2">
+                            <button class="pay-method-btn flex-1 glass-input rounded-lg p-2 text-center text-xs text-gray-300 border border-neon-purple/30 hover:border-neon-purple/60 transition-all" data-method="card" onclick="selectPayMethod(this)">
+                                <i data-lucide="credit-card" class="w-4 h-4 mx-auto mb-1"></i>Карта
+                            </button>
+                            <button class="pay-method-btn flex-1 glass-input rounded-lg p-2 text-center text-xs text-gray-300 hover:border-neon-purple/60 transition-all" data-method="sbp" onclick="selectPayMethod(this)">
+                                <i data-lucide="smartphone" class="w-4 h-4 mx-auto mb-1"></i>СБП
+                            </button>
+                            <button class="pay-method-btn flex-1 glass-input rounded-lg p-2 text-center text-xs text-gray-300 hover:border-neon-purple/60 transition-all" data-method="qiwi" onclick="selectPayMethod(this)">
+                                <i data-lucide="wallet" class="w-4 h-4 mx-auto mb-1"></i>QIWI
+                            </button>
+                        </div>
+                    </div>
+                    <div id="paymentError" class="hidden text-xs text-center py-2 rounded-lg bg-red-500/10 text-red-400"></div>
+                    <div class="flex gap-3 pt-2">
+                        <button onclick="processPayment()" class="btn-gradient flex-1 rounded-xl py-2.5 font-medium text-white text-sm">Оплатить</button>
+                    </div>
+                    <p class="text-[10px] text-gray-600 text-center">Безопасная оплата через защищённое соединение</p>
+                </div>
+            </div>
+
+            <!-- PAYMENT PROCESSING -->
+            <div id="paymentProcessingForm" class="hidden text-center py-8">
+                <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-neon-purple/10 flex items-center justify-center animate-pulse">
+                    <i data-lucide="loader-2" class="w-8 h-8 text-neon-purple animate-spin"></i>
+                </div>
+                <p class="text-white font-medium mb-1">Обработка оплаты...</p>
+                <p class="text-xs text-gray-500">Пожалуйста, подождите</p>
+            </div>
+
+            <!-- PAYMENT SUCCESS -->
+            <div id="paymentSuccessForm" class="hidden text-center py-8">
+                <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-neon-emerald/10 flex items-center justify-center">
+                    <i data-lucide="check-circle" class="w-8 h-8 text-neon-emerald"></i>
+                </div>
+                <p class="text-white font-medium mb-1">Оплата прошла успешно!</p>
+                <p class="text-sm text-gray-400 mb-4">+<span id="paidAmount">0</span> &#8381; начислено на баланс</p>
+                <p class="text-sm text-gray-400">Текущий баланс: <span id="newBalance" class="text-neon-emerald font-medium">0 &#8381;</span></p>
+                <button onclick="closePaymentModal()" class="mt-4 btn-gradient rounded-xl py-2.5 px-8 font-medium text-white text-sm">Отлично!</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ADMIN PANEL MODAL -->
+    <div id="adminModal" class="hidden fixed inset-0 z-[100] modal-overlay flex items-center justify-center p-4">
+        <div class="glass-card rounded-2xl p-6 w-full max-w-lg relative">
+            <button onclick="closeAdminPanel()" class="absolute top-4 right-4 text-gray-500 hover:text-gray-300 transition-colors">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+            <h3 class="font-display font-bold text-lg text-white mb-1 flex items-center gap-2">
+                <i data-lucide="shield" class="w-5 h-5 text-yellow-400"></i> Админ-панель
+            </h3>
+            <p class="text-xs text-gray-500 mb-5">Управление API ключом и пользователями</p>
+
+            <!-- API KEY SETTINGS -->
+            <div class="space-y-4">
+                <div class="glass-input rounded-xl p-4">
+                    <label class="block text-xs font-medium text-gray-400 mb-2">API Key (для ИИ)</label>
+                    <div class="flex gap-2">
+                        <input id="adminApiKey" type="password" placeholder="atr_..." class="glass-input flex-1 rounded-lg p-2.5 text-sm text-gray-200 placeholder-gray-600">
+                        <button onclick="toggleAdminKeyVisibility()" class="glass-input px-3 rounded-lg text-gray-400 hover:text-white transition-colors">
+                            <i data-lucide="eye" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                    <div class="flex gap-2 mt-2">
+                        <button onclick="saveAdminApiKey()" class="btn-gradient flex-1 rounded-lg py-2 font-medium text-white text-xs">Сохранить</button>
+                        <button onclick="testAdminApiKey()" class="glass-input flex-1 rounded-lg py-2 font-medium text-gray-400 text-xs hover:text-white transition-colors">Тест</button>
+                    </div>
+                    <div id="adminKeyStatus" class="hidden text-xs text-center py-2 rounded-lg mt-2"></div>
+                </div>
+
+                <!-- USERS TABLE -->
+                <div class="glass-input rounded-xl p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <label class="block text-xs font-medium text-gray-400">Пользователи</label>
+                        <span id="userCount" class="text-xs text-gray-600"></span>
+                    </div>
+                    <div id="usersList" class="space-y-2 max-h-48 overflow-y-auto"></div>
+                </div>
+
+                <!-- STATS -->
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="glass-input rounded-xl p-3 text-center">
+                        <p class="text-lg font-bold text-neon-emerald" id="statTotalUsers">0</p>
+                        <p class="text-[10px] text-gray-600">Всего пользователей</p>
+                    </div>
+                    <div class="glass-input rounded-xl p-3 text-center">
+                        <p class="text-lg font-bold text-neon-purple" id="statTotalRevenue">0 &#8381;</p>
+                        <p class="text-[10px] text-gray-600">Общий доход</p>
                     </div>
                 </div>
             </div>
