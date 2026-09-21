@@ -286,6 +286,11 @@
                     <input id="apiKeyInput" type="password" placeholder="sk-..." class="glass-input w-full rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600">
                 </div>
                 <div>
+                    <label class="block text-xs font-medium text-gray-400 mb-2">Cloudflare Worker URL (CORS proxy, опционально)</label>
+                    <input id="apiProxy" type="url" placeholder="https://my-proxy.workers.dev/?url=" class="glass-input w-full rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600">
+                    <p class="text-[10px] text-gray-600 mt-1">Нужен для работы из браузера. Без него работает демо-режим.</p>
+                </div>
+                <div>
                     <label class="block text-xs font-medium text-gray-400 mb-2">Модель (опционально)</label>
                     <input id="apiModel" type="text" placeholder="gpt-4o (по умолчанию)" class="glass-input w-full rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600">
                 </div>
