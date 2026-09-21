@@ -145,10 +145,53 @@
                     </div>
                     <textarea id="resumeInput" rows="14" placeholder="Вставьте текст вашего резюме сюда...&#10;&#10;Например:&#10;Иван Петров&#10;Frontend-разработчик&#10;3 года опыта...&#10;&#10;Опыт работы:&#10;- Работал над проектами&#10;- Делал верстку&#10;- Участвовал в код-ревью" class="glass-input w-full rounded-xl p-4 text-sm text-gray-200 placeholder-gray-600 resize-none focus:ring-1 focus:ring-neon-purple/30" oninput="updateCharCount()"></textarea>
                     <div class="mt-2 flex items-center justify-between">
-                        <span class="text-xs text-gray-600">Минимум 50 символов для анализа</span>
+                        <div class="flex items-center gap-3">
+                            <label class="text-xs text-gray-600 hover:text-neon-purple transition-colors flex items-center gap-1 cursor-pointer">
+                                <i data-lucide="upload" class="w-3 h-3"></i> Загрузить файл
+                                <input id="fileUpload" type="file" accept=".txt,.pdf,.doc,.docx,.rtf" class="hidden" onchange="handleFileUpload(event)">
+                            </label>
+                            <span class="text-xs text-gray-600">Мин. 50 символов</span>
+                        </div>
                         <button onclick="document.getElementById('resumeInput').value=''; updateCharCount();" class="text-xs text-gray-600 hover:text-red-400 transition-colors flex items-center gap-1">
                             <i data-lucide="x" class="w-3 h-3"></i> Очистить
                         </button>
+                    </div>
+                </div>
+
+                <div class="glass-card rounded-2xl p-5 neon-border">
+                    <label class="flex items-center gap-2 font-display font-semibold text-sm text-gray-300 mb-3">
+                        <i data-lucide="sparkles" class="w-4 h-4 text-neon-pink"></i>
+                        Режим обработки
+                    </label>
+                    <div class="space-y-2" id="promptGrid">
+                        <label class="glass-input rounded-xl p-3 flex items-center gap-3 cursor-pointer hover:border-neon-purple/40 transition-all has-[:checked]:border-neon-purple/50 has-[:checked]:bg-neon-purple/5">
+                            <input type="radio" name="promptMode" value="standardize" checked class="accent-neon-purple w-4 h-4">
+                            <div>
+                                <p class="text-sm text-gray-200 font-medium">Стандартизация</p>
+                                <p class="text-[10px] text-gray-600">Привести к стандарту площадки + придумать недостающие данные</p>
+                            </div>
+                        </label>
+                        <label class="glass-input rounded-xl p-3 flex items-center gap-3 cursor-pointer hover:border-neon-purple/40 transition-all has-[:checked]:border-neon-purple/50 has-[:checked]:bg-neon-purple/5">
+                            <input type="radio" name="promptMode" value="optimize" class="accent-neon-purple w-4 h-4">
+                            <div>
+                                <p class="text-sm text-gray-200 font-medium">Оптимизация</p>
+                                <p class="text-[10px] text-gray-600">Усилить текст: активные глаголы, метрики, STAR-формула</p>
+                            </div>
+                        </label>
+                        <label class="glass-input rounded-xl p-3 flex items-center gap-3 cursor-pointer hover:border-neon-purple/40 transition-all has-[:checked]:border-neon-purple/50 has-[:checked]:bg-neon-purple/5">
+                            <input type="radio" name="promptMode" value="tailor" class="accent-neon-purple w-4 h-4">
+                            <div>
+                                <p class="text-sm text-gray-200 font-medium">Подгонка под вакансию</p>
+                                <p class="text-[10px] text-gray-600">Персонализировать резюме под конкретную должность</p>
+                            </div>
+                        </label>
+                        <label class="glass-input rounded-xl p-3 flex items-center gap-3 cursor-pointer hover:border-neon-purple/40 transition-all has-[:checked]:border-neon-purple/50 has-[:checked]:bg-neon-purple/5">
+                            <input type="radio" name="promptMode" value="rewrite" class="accent-neon-purple w-4 h-4">
+                            <div>
+                                <p class="text-sm text-gray-200 font-medium">Полный пересказ</p>
+                                <p class="text-[10px] text-gray-600">Полностью переписать резюме с нуля, сохранив факты</p>
+                            </div>
+                        </label>
                     </div>
                 </div>
 
