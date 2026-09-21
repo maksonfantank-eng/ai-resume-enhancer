@@ -60,6 +60,32 @@ function updateCharCount() {
     document.getElementById('charCount').className = len < 50 ? 'text-xs text-yellow-500' : 'text-xs text-gray-500';
 }
 
+function getSelectedPromptMode() {
+    var checked = document.querySelector('input[name="promptMode"]:checked');
+    return checked ? checked.value : 'standardize';
+}
+
+function handleFileUpload(event) {
+    var file = event.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        var text = e.target.result;
+        document.getElementById('resumeInput').value = text;
+        updateCharCount();
+        showToast('\u0424\u0430\u0439\u043b \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d: ' + file.name, 'success');
+    };
+    reader.onerror = function() {
+        showToast('\u041e\u0448\u0438\u0431\u043a\u0430 \u0447\u0442\u0435\u043d\u0438\u044f \u0444\u0430\u0439\u043b\u0430', 'error');
+    };
+    if (file.name.endsWith('.txt') || file.name.endsWith('.rtf')) {
+        reader.readAsText(file);
+    } else {
+        reader.readAsText(file);
+    }
+    event.target.value = '';
+}
+
 function showToast(message, type) {
     type = type || 'success';
     var container = document.getElementById('toastContainer');
@@ -461,14 +487,61 @@ function setATSScore(newScore) {
 }
 
 // ===================== SYSTEM PROMPT =====================
-function buildSystemPrompt() {
+function buildSystemPrompt(mode, jobTitle, platform) {
     var pNames = { hh: 'hh.ru', linkedin: 'LinkedIn', habr: 'Habr Career', ats: 'ATS (Workday, Greenhouse)' };
-    var tones = {
-        business: '\u0421\u0442\u0440\u043e\u0433\u0438\u0439 \u0434\u0435\u043b\u043e\u0432\u043e\u0439 \u0441\u0442\u0438\u043b\u044c.',
-        creative: '\u041a\u0440\u0435\u0430\u0442\u0438\u0432\u043d\u044b\u0439 \u0441\u0442\u0438\u043b\u044c.',
-        concise: '\u041c\u0430\u043a\u0441\u0438\u043c\u0430\u043b\u044c\u043d\u043e \u043b\u0430\u043a\u043e\u043d\u0438\u0447\u043d\u044b\u0439.'
+    var pName = pNames[platform] || 'hh.ru';
+
+    var baseRules = 'RESPONSE FORMAT: Return EXACTLY in this format:\n===IMPROVED_RESUME===\n[resume]\n\n===CHANGES===\n[+ added, - removed, ~ modified]\n\nRULES:\n- Keep ALL original facts (names, dates, companies, projects)\n- Never invent work experience that wasn\'t in the original\n- You MAY invent realistic supplementary details (certifications, soft skills, brief objective) ONLY if clearly missing\n- Output in the SAME language as the input resume';
+
+    var prompts = {
+        standardize: 'You are an expert resume writer specializing in ' + pName + '. TASK: Standardize the resume to match ' + pName + ' best practices. ' +
+            '1) STRUCTURE: Add missing standard sections: Professional Summary (if missing), Experience (with company/dates/bullets), Skills (as keyword list), Education. Reorder sections to match ' + pName + ' format.\n' +
+            '2) HEADER: Ensure name, contact (email, phone), city are present. If missing, add placeholders like "[Укажите email]" or "[Город]".\n' +
+            '3) SUMMARY: If no professional summary exists, write a 2-3 sentence summary tailored to the resume content' + (jobTitle ? ' and target position: ' + jobTitle : '') + '.\n' +
+            '4) EXPERIENCE: Each job must have: Company name, Position, Dates (month/year format), 3-5 bullet points starting with action verbs. If bullets are weak, rewrite them using STAR method.\n' +
+            '5) SKILLS: Create a dedicated skills section as a comma-separated list. Extract skills from the text and add relevant keywords for ' + pName + '.\n' +
+            '6) EDUCATION: Ensure education section exists. If only university is listed, add "[Год окончания]" if missing.\n' +
+            '7) FILL MISSING: For clearly missing non-critical fields, add realistic placeholder data in [brackets] or brief realistic additions. Example: if no LinkedIn URL, add "[LinkedIn: ...]". If no photo instruction, add "(фото не требуется)" for ' + pName + '.\n' +
+            '8) FORMATTING: Use ' + (platform === 'ats' ? 'plain text, no special characters' : 'clean bullet points with dashes') + '. No markdown tables.' +
+            baseRules,
+
+        optimize: 'You are an ATS optimization expert for ' + pName + '. TASK: Optimize the resume for maximum ATS score and recruiter impact.\n' +
+            '1) VERBS: Replace ALL passive/weak verbs with strong action verbs: "осуществлял" -> "реализовал", "занимался" -> "успешно выполнил", "делал" -> "обеспечил", "участвовал" -> "внёс вклад".\n' +
+            '2) METRICS: Add quantified metrics to EVERY experience bullet where possible. Use realistic numbers: percentages, revenue amounts, team sizes, time saved. Format: "Increased X by Y%" or "Reduced Z by N%".\n' +
+            '3) STAR: Rewrite each experience bullet using STAR: Situation (brief context) + Task (what was needed) + Action (what you did) + Result (measurable outcome).\n' +
+            '4) KEYWORDS: Inject relevant keywords for ' + pName + ' naturally into the text. For hh.ru: "опыт", "разработка", "проект", "результат". For LinkedIn: "achieved", "led", "developed", "managed".\n' +
+            '5) WEAK PHRASES: Remove: "имел опыт", "осуществлял деятельность", " принимал участие", "был ответственным за". Replace with direct action statements.\n' +
+            '6) LENGTH: Ensure each bullet is 1-2 sentences. Remove fluff words: "также", "непосредственно", "в рамках".\n' +
+            '7) If ' + pName + ' is ATS, avoid: tables, graphics, special characters, headers/footers.' +
+            baseRules,
+
+        tailor: 'You are a career coach. TASK: Rewrite the resume specifically for the target position' + (jobTitle ? ': ' + jobTitle : '') + '.\n' +
+            '1) SUMMARY: Rewrite professional summary to directly address the target position. Mention key requirements from the job title.\n' +
+            '2) SKILLS: Reorder skills to put the most relevant ones for the target position first. Add missing skills that are typically required for ' + (jobTitle || 'this position') + '.\n' +
+            '3) EXPERIENCE: Rewrite each job bullet to highlight relevance to the target position. Emphasize transferable skills and achievements that match the role.\n' +
+            '4) KEYWORDS: Extract keywords from the job title and weave them naturally into the resume. For example, if target is "Product Manager", use: roadmap, stakeholder, metrics, A/B testing, user stories.\n' +
+            '5) RELEVANCE: De-emphasize or remove experience that is not relevant to the target position. Keep it brief (1 line) if included.\n' +
+            '6) OBJECTIVE: If there is no career objective, add one that states: "Seeking a position as [target title] to leverage [key skills from resume]."\n' +
+            '7) LANGUAGE: Match the tone and terminology commonly used in ' + (jobTitle || 'this field') + '.' +
+            baseRules,
+
+        rewrite: 'You are a professional resume writer. TASK: Completely rewrite the resume from scratch while preserving ALL factual information.\n' +
+            '1) PARSE: First, extract ALL factual data: name, contacts, companies, positions, dates, projects, skills, education.\n' +
+            '2) REWRITE: Create a completely new resume using professional language, strong structure, and modern formatting.\n' +
+            '3) STRUCTURE: Header -> Professional Summary -> Core Skills -> Professional Experience -> Education -> Additional.\n' +
+            '4) TONE: Professional but engaging. Use active voice throughout. Every sentence should demonstrate value.\n' +
+            '5) IMPROVEMENTS:\n' +
+            '   - Convert duties to achievements ("Managed team of 5" not "Responsible for team")\n' +
+            '   - Add metrics to every possible bullet\n' +
+            '   - Use STAR format for experience\n' +
+            '   - Create a compelling 2-3 sentence summary\n' +
+            '   - List 8-15 relevant skills\n' +
+            '6) FORMATTING: Clean, ATS-friendly for ' + pName + '. No tables, no graphics, consistent formatting.' +
+            (jobTitle ? '\n7) TARGET: Optimize for position: ' + jobTitle + '. Highlight relevant experience and skills for this role.' : '') +
+            baseRules
     };
-    return 'You are an expert ATS resume optimizer for ' + pNames[selectedPlatform] + '. TASK: Given a resume and a target job title, deeply analyze and rewrite the resume specifically tailored for that position. RULES: 1) Parse the resume into sections: header, summary/objective, experience, skills, education. 2) Rewrite each section to highlight relevance to the target job. 3) Replace ALL passive verbs with strong action verbs. 4) Apply STAR method (Situation, Task, Action, Result) to every experience bullet. 5) Add quantified metrics where missing. 6) Eliminate weak filler phrases. 7) Inject keywords from the target job title into relevant sections. 8) Reorder skills to prioritize those matching the job title. 9) Rewrite summary/objective to directly address the target position. 10) Keep ALL original factual information. TONE: ' + tones[currentTone] + '. Return EXACTLY in this format:\n===IMPROVED_RESUME===\n[complete rewritten resume]\n\n===CHANGES===\n[+ added, - removed, ~ modified]\n\n===MISSING_SECTIONS===\n[sections that were missing and added, e.g. summary, certifications]';
+
+    return prompts[mode] || prompts.standardize;
 }
 
 // ===================== DEEP ANALYSIS ENGINE =====================
@@ -751,7 +824,17 @@ function generateEnhancedResume(resumeText, jobTitle) {
 function generateDemoResult(resumeText, jobTitle) {
     return new Promise(function(resolve) {
         var delay = 1500 + Math.random() * 1500;
-        var result = generateEnhancedResume(resumeText, jobTitle);
+        var mode = getSelectedPromptMode();
+        var result;
+        if (mode === 'rewrite') {
+            result = generateEnhancedResume(resumeText, jobTitle);
+        } else if (mode === 'optimize') {
+            result = generateOptimizedResume(resumeText, jobTitle);
+        } else if (mode === 'tailor') {
+            result = generateTailoredResume(resumeText, jobTitle);
+        } else {
+            result = generateEnhancedResume(resumeText, jobTitle);
+        }
         var score = calculateATSScore(result.resume, selectedPlatform);
         setTimeout(function() {
             resolve({ resume: result.resume, changes: result.changes, score: score });
@@ -759,10 +842,65 @@ function generateDemoResult(resumeText, jobTitle) {
     });
 }
 
+function generateOptimizedResume(resumeText, jobTitle) {
+    var lines = resumeText.split('\n');
+    var enhanced = [];
+    var changes = [];
+    var passiveMap = {
+        '\u0437\u0430\u043d\u0438\u043c\u0430\u043b\u0441\u044f': '\u0443\u0441\u043f\u0435\u0448\u043d\u043e \u0432\u044b\u043f\u043e\u043b\u043d\u044f\u043b',
+        '\u043e\u0441\u0443\u0449\u0435\u0441\u0442\u0432\u043b\u044f\u043b': '\u0440\u0435\u0430\u043b\u0438\u0437\u043e\u0432\u0430\u043b',
+        '\u0432\u044b\u043f\u043e\u043b\u043d\u044f\u043b': '\u043e\u0431\u0435\u0441\u043f\u0435\u0447\u0438\u043b',
+        '\u043f\u0440\u043e\u0432\u043e\u0434\u0438\u043b': '\u043e\u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0438\u043b',
+        '\u0434\u0435\u043b\u0430\u043b': '\u0432\u044b\u043f\u043e\u043b\u043d\u044f\u043b',
+        '\u0437\u0430\u043d\u0438\u043c\u0430\u043b\u0430\u0441\u044c': '\u0443\u0441\u043f\u0435\u0448\u043d\u043e \u0432\u044b\u043f\u043e\u043b\u043d\u044f\u043b',
+        '\u0431\u044b\u043b \u043e\u0442\u0432\u0435\u0442\u0441\u0442\u0432\u0435\u043d\u043d\u044b\u0439': '\u0443\u0441\u043f\u0435\u0448\u043d\u043e \u043f\u0440\u0438\u0432\u0435\u043b \u043f\u0440\u043e\u0435\u043a\u0442',
+        '\u0443\u0447\u0430\u0441\u0442\u0432\u043e\u0432\u0430\u043b': '\u043e\u0431\u0435\u0441\u043f\u0435\u0447\u0438\u043b \u0443\u0447\u0430\u0441\u0442\u0438\u0435 \u0432',
+        '\u0438\u043c\u0435\u043b \u043e\u043f\u044b\u0442': '\u0440\u0430\u0441\u043f\u043e\u043b\u0430\u0433\u0430\u043b \u0432\u043b\u0430\u0434\u0435\u043d\u0438\u044f\u043c\u0438 \u0432'
+    };
+    var jobUpper = jobTitle ? jobTitle.toUpperCase() : '\u041f\u0420\u041e\u0424\u0415\u0421\u0421\u0418\u041e\u041d\u0410\u041b\u042c\u041d\u041e\u0415 \u0420\u0415\u0417\u042e\u041c\u0415';
+    enhanced.push(jobUpper);
+    enhanced.push('');
+    lines.forEach(function(line) {
+        var trimmed = line.trim();
+        if (!trimmed) { enhanced.push(''); return; }
+        var newLine = trimmed;
+        Object.keys(passiveMap).forEach(function(passive) {
+            if (newLine.toLowerCase().indexOf(passive) !== -1) {
+                newLine = newLine.replace(new RegExp(passive, 'i'), passiveMap[passive]);
+                changes.push({ type: 'modify', text: '\u00ab' + passive + '\u00bb \u2192 \u00ab' + passiveMap[passive] + '\u00bb \u2014 \u0437\u0430\u043c\u0435\u043d\u0430 \u0433\u043b\u0430\u0433\u043e\u043b\u0430' });
+            }
+        });
+        if (/\d/.test(trimmed) && /[\u2022\-\*]\s/.test(trimmed) && trimmed.length > 30 && trimmed.length < 200) {
+            if (trimmed.indexOf('%') === -1 && trimmed.indexOf('\u2014') === -1) {
+                var m = Math.floor(Math.random() * 40 + 20);
+                if (newLine.indexOf('\u0441\u043e\u043a\u0440\u0430\u0442') === -1) {
+                    newLine = newLine + ', \u0434\u043e\u0441\u0442\u0438\u0433\u043d\u0443\u0432 ' + m + '%';
+                    changes.push({ type: 'add', text: '\u0414\u043e\u0431\u0430\u0432\u043b\u0435\u043d\u0430 \u043c\u0435\u0442\u0440\u0438\u043a\u0430: +' + m + '%' });
+                }
+            }
+        }
+        enhanced.push(newLine);
+    });
+    changes.push({ type: 'modify', text: '\u041e\u043f\u0442\u0438\u043c\u0438\u0437\u0430\u0446\u0438\u044f \u0434\u043b\u044f ' + selectedPlatform.toUpperCase() });
+    return { resume: enhanced.join('\n'), changes: changes };
+}
+
+function generateTailoredResume(resumeText, jobTitle) {
+    var result = generateEnhancedResume(resumeText, jobTitle);
+    if (jobTitle) {
+        result.changes.unshift({ type: 'add', text: '\u0420\u0435\u0437\u044e\u043c\u0435 \u043f\u0435\u0440\u0441\u043e\u043d\u0430\u043b\u0438\u0437\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u043f\u043e\u0434 \u043f\u043e\u0437\u0438\u0446\u0438\u044e: ' + jobTitle });
+        var lines = result.resume.split('\n');
+        lines[0] = jobTitle.toUpperCase();
+        result.resume = lines.join('\n');
+    }
+    return result;
+}
+
 // ===================== AI REQUEST =====================
 async function callAI(resume, jobTitle) {
-    var systemPrompt = buildSystemPrompt();
-    var userMessage = 'Resume:\n\n' + resume + '\n\nTarget position: ' + (jobTitle || 'Not specified') + '\n\nAnalyze and rewrite this resume specifically for the target position.';
+    var mode = getSelectedPromptMode();
+    var systemPrompt = buildSystemPrompt(mode, jobTitle, selectedPlatform);
+    var userMessage = 'Resume:\n\n' + resume + '\n\nTarget position: ' + (jobTitle || 'Not specified') + '\n\nPlatform: ' + selectedPlatform;
 
     var url = '';
     var model = '';
