@@ -12,7 +12,8 @@ var lastResult = null;
 var lastChanges = null;
 
 // ===================== AUTH STATE =====================
-var currentUser = JSON.parse(localStorage.getItem('resume_current_user') || 'null');
+var currentUser = null;
+try { currentUser = JSON.parse(localStorage.getItem('resume_current_user') || 'null'); } catch (e) { currentUser = null; }
 var pendingRegistration = null;
 var COST_PER_REQUEST = 50;
 
@@ -59,11 +60,23 @@ function getSelectedPromptMode() {
     return checked ? checked.value : 'standardize';
 }
 
+// cp1251 high-half mapping (bytes 0x80-0xFF -> unicode), shared by rtfToText and the RTF writer
+var CP1251_HI = ['Ђ','Ѓ','‚','ѓ','„','…','†','‡','€','‰','Љ','‹','Њ','Ќ','Ћ','Џ',
+    'ђ','\u2018','\u2019','\u201C','\u201D','\u2022','\u2013','\u2014','','\u2122','љ','›','њ','ќ','ћ','џ',
+    '\u00A0','Ў','ў','','\u00A4','Ґ','\u00A6','\u00A7','Ё','\u00A9','Є','\u00AB','\u00AC','\u00AD','\u00AE','Ї',
+    '\u00B0','\u00B1','І','і','ґ','\u00B5','\u00B6','\u00B7','ё','\u2116','є','\u00BB','ј','Ѕ','ї',''];
+
+// Reverse lookup: unicode code point -> cp1251 byte, or -1 when the char is not in cp1251
+function unicodeToCp1251(code) {
+    if (code < 0x80) return code;
+    if (code >= 0x0410 && code <= 0x044F) return code - 0x0410 + 0xC0;
+    for (var i = 0; i < 128; i++) {
+        if (CP1251_HI[i] && CP1251_HI[i].charCodeAt(0) === code) return i + 0x80;
+    }
+    return -1;
+}
+
 function rtfToText(rtf) {
-    var CP1251_HI = ['Ђ','Ѓ','‚','ѓ','„','…','†','‡','€','‰','Љ','‹','Њ','Ќ','Ћ','Џ',
-        'ђ','\u2018','\u2019','\u201C','\u201D','\u2022','\u2013','\u2014','','\u2122','љ','›','њ','ќ','ћ','џ',
-        '\u00A0','Ў','ў','','\u00A4','Ґ','\u00A6','\u00A7','Ё','\u00A9','Є','\u00AB','\u00AC','\u00AD','\u00AE','Ї',
-        '\u00B0','\u00B1','І','і','ґ','\u00B5','\u00B6','\u00B7','ё','\u2116','є','\u00BB','ј','Ѕ','ї',''];
     function byteToChar(code) {
         if (code < 0x80) return String.fromCharCode(code);
         if (code >= 0xC0) return String.fromCharCode(0x0410 + (code - 0xC0));
@@ -106,6 +119,19 @@ function rtfToText(rtf) {
             while (j < len && reDigit.test(rtf.charAt(j))) j++;
             if (rtf.charAt(j) === ' ') j++;
             if (word) {
+                if (word === 'u') {
+                    var ustr = '';
+                    var uj = i + 2;
+                    while (uj < len && reDigit.test(rtf.charAt(uj))) { ustr += rtf.charAt(uj); uj++; }
+                    if (ustr.length) {
+                        var uni = parseInt(ustr, 10);
+                        if (uni < 0) uni += 65536;
+                        out.push(String.fromCharCode(uni));
+                        if (rtf.charAt(uj) === '?') uj++;
+                        i = uj;
+                        continue;
+                    }
+                }
                 if (pendingDestination || (SKIP_GROUPS[word] && i > 0 && rtf.charAt(i - 1) === '{')) {
                     skipFrom = depth;
                     pendingDestination = false;
@@ -1256,6 +1282,175 @@ function renderHHResume(model) {
     return out.join('\n');
 }
 
+// ===================== hh.ru RTF EXPORT =====================
+// Layout mirrors the hh.ru resume export (see 12044770.rtf): Arial everywhere,
+// 12pt for the name / company / position, 11pt bold gray section titles with a
+// thin bottom rule, 9pt body, 8pt dark-gray labels for periods and durations.
+var HH_RTF_FONTTABLE = '{\\fonttbl{\\f0\\froman\\fcharset204 Times New Roman;}{\\f1\\fswiss\\fcharset204 Arial;}}';
+var HH_RTF_COLORTBL = '{\\colortbl;\\red0\\green0\\blue0;\\red0\\green0\\blue255;\\red0\\green255\\blue255;' +
+    '\\red0\\green255\\blue0;\\red255\\green0\\blue255;\\red255\\green0\\blue0;\\red255\\green255\\blue0;' +
+    '\\red255\\green255\\blue255;\\red0\\green0\\blue128;\\red0\\green128\\blue128;\\red0\\green128\\blue0;' +
+    '\\red128\\green0\\blue128;\\red128\\green0\\blue0;\\red128\\green128\\blue0;\\red128\\green128\\blue128;' +
+    '\\red192\\green192\\blue192;\\red174\\green174\\blue174;\\red255\\green255\\blue255;' +
+    '\\red216\\green216\\blue216;\\red112\\green112\\blue112;\\red188\\green188\\blue188;}';
+var HH_RTF_RUN = {
+    name: '\\f1\\fs24',
+    head: '\\f1\\fs22\\b\\cf17',
+    period: '\\f1\\fs16\\cf20',
+    company: '\\f1\\fs24\\b',
+    position: '\\f1\\fs24',
+    city: '\\f1\\fs18\\cf17',
+    body: '\\f1\\fs18',
+    label: '\\f1\\fs16\\cf20'
+};
+var HH_RTF_PAR = {
+    name: '\\pard\\sb0\\sa40\\sl240\\slmult0',
+    head: '\\pard\\sb500\\sa150\\brdrb\\brdrs\\brdrw15\\brdrcf19',
+    period: '\\pard\\sb80\\sa40\\sl220\\slmult0',
+    company: '\\pard\\sb80\\sa40\\sl280\\slmult0',
+    position: '\\pard\\sb40\\sa40\\sl280\\slmult0',
+    city: '\\pard\\sb0\\sa40\\sl260\\slmult0',
+    body: '\\pard\\sb0\\sa80\\sl260\\slmult0',
+    label: '\\pard\\sb120\\sa40\\sl220\\slmult0'
+};
+
+// Escapes RTF control characters and writes every non-ASCII symbol as a cp1251
+// \'XX escape (matching \ansicpg1251), falling back to \uN? outside cp1251.
+function rtfEscapeText(s) {
+    var str = String(s === null || s === undefined ? '' : s);
+    var out = '';
+    for (var i = 0; i < str.length; i++) {
+        var ch = str.charAt(i);
+        if (ch === '\\' || ch === '{' || ch === '}') { out += '\\' + ch; continue; }
+        var code = str.charCodeAt(i);
+        if (code < 0x80) { out += ch; continue; }
+        var b = unicodeToCp1251(code);
+        if (b >= 0) out += "\\'" + (b < 16 ? '0' : '') + b.toString(16).toUpperCase();
+        else out += '\\u' + code + '?';
+    }
+    return out;
+}
+
+function renderHHResumeRTF(model) {
+    var m = model || {};
+    var jobs = m.jobs || [], education = m.education || [], courses = m.courses || [];
+    var languages = m.languages || [], skills = m.skills || [];
+    var references = m.references || [], extra = m.extra || [];
+
+    // Section order mirrors renderHHResume() exactly.
+    var rows = [];
+    rows.push(['name', m.name || '[Укажите ФИО]']);
+    if (m.personal) rows.push(['body', m.personal]);
+    if (m.phone) rows.push(['body', m.phone]);
+    if (m.email) rows.push(['body', m.email]);
+    if (m.city) rows.push(['body', 'Проживает: ' + m.city]);
+    if (m.citizenship) rows.push(['body', 'Гражданство: ' + m.citizenship]);
+    if (m.relocate) rows.push(['body', m.relocate]);
+
+    if (m.coverLetter) {
+        rows.push(['head', 'Сопроводительное письмо']);
+        rows.push(['body', m.coverLetter]);
+    }
+
+    if (m.jobTitle || m.sphere || m.salary) {
+        rows.push(['head', 'Желаемая должность и зарплата']);
+        if (m.jobTitle) rows.push(['body', m.jobTitle]);
+        if (m.sphere) rows.push(['body', m.sphere]);
+        rows.push(['body', m.employment || 'Полная занятость, полный день']);
+        if (m.salary) rows.push(['body', hhSalaryLine(m.salary)]);
+    }
+
+    if (jobs.length) {
+        rows.push(['head', 'Опыт работы']);
+        if (m.totalExperience) rows.push(['body', m.totalExperience]);
+        jobs.forEach(function(job) {
+            var period = job.start ? hhFormatPeriod(job) : '[Укажите период работы]';
+            var dur = job.duration;
+            if (!dur && job.start && job.end) {
+                var months = 0;
+                if (job.end.present) { var n = new Date(); months = (n.getFullYear() - job.start.year) * 12 + (n.getMonth() - job.start.month); }
+                else months = (job.end.year - job.start.year) * 12 + (job.end.month - job.start.month);
+                dur = hhFormatDuration(months);
+            }
+            rows.push(['period', period + (dur ? '\n' + dur : '')]);
+            if (job.company) rows.push(['company', job.company]);
+            if (job.city) rows.push(['city', job.city]);
+            if (job.sphere) rows.push(['body', job.sphere]);
+            if (job.position) rows.push(['position', job.position]);
+            (job.description || []).forEach(function(d) { rows.push(['body', d]); });
+        });
+    }
+
+    if (education.length) {
+        rows.push(['head', 'Высшее образование']);
+        education.forEach(function(ed) {
+            if (ed.year) rows.push(['body', ed.year]);
+            if (ed.place) rows.push(['body', ed.place]);
+            if (ed.faculty) rows.push(['body', ed.faculty]);
+        });
+    }
+
+    if (courses.length) {
+        rows.push(['head', 'Повышение квалификации, курсы']);
+        courses.forEach(function(c) {
+            if (c.year) rows.push(['body', c.year]);
+            if (c.title) rows.push(['body', c.title]);
+            if (c.org) rows.push(['body', c.org]);
+        });
+    }
+
+    if (languages.length || skills.length) {
+        rows.push(['head', 'Ключевые навыки']);
+        rows.push(['label', 'Знание языков']);
+        if (languages.length) {
+            languages.forEach(function(l) { rows.push(['body', l.name + (l.level ? ' ' + l.level : '')]); });
+        } else {
+            rows.push(['body', 'Русский родной']);
+        }
+        if (skills.length) {
+            rows.push(['label', 'Навыки']);
+            skills.slice(0, 30).forEach(function(s) { rows.push(['body', s]); });
+        }
+    }
+
+    if (extra.length || references.length) {
+        rows.push(['head', 'Дополнительная информация']);
+        extra.forEach(function(e) { rows.push(['body', e]); });
+        if (references.length) {
+            rows.push(['label', 'Рекомендации']);
+            references.forEach(function(r) {
+                if (r.org) rows.push(['body', r.org]);
+                if (r.name) rows.push(['body', r.name + (r.position ? ' (' + r.position + ')' : '') + (r.phone ? '. ' + r.phone : '')]);
+            });
+        }
+    }
+
+    function emit(row) {
+        var style = row[0];
+        var par = HH_RTF_PAR[style] || HH_RTF_PAR.body;
+        var run = HH_RTF_RUN[style] || HH_RTF_RUN.body;
+        var segs = String(row[1]).split('\n');
+        var s = par + ' {' + run + ' ';
+        for (var k = 0; k < segs.length; k++) {
+            if (k > 0) s += '\\line ';
+            s += rtfEscapeText(segs[k]);
+        }
+        return s + '\\par}';
+    }
+
+    var doc = [];
+    doc.push('{\\rtf1\\ansi\\ansicpg1251\\uc1\\deff0\\deflang1049\\langfe1049');
+    doc.push(HH_RTF_FONTTABLE);
+    doc.push(HH_RTF_COLORTBL);
+    doc.push('\\paperw11906\\paperh16838\\margl1134\\margr1134\\margt1134\\margb1134\\widowctrl\\ftnbj\\aenddoc');
+    var footName = rtfEscapeText(String(m.name || '').trim());
+    doc.push('{\\footer\\pard\\qr\\sa200\\f1\\fs16\\cf21 ' + (footName ? footName + ' \\bullet  ' : '') + '\\chpgn\\par}');
+    doc.push('\\pard\\plain\\f1\\fs18\\lang1049\\langfe1049\\sa200\\sl276\\slmult1');
+    for (var r = 0; r < rows.length; r++) doc.push(emit(rows[r]));
+    doc.push('}');
+    return doc.join('\n');
+}
+
 function processHHResume(resumeText, jobTitle, mode) {
     var model = parseToHHModel(resumeText);
     var changes = [];
@@ -1487,8 +1682,18 @@ function copyResult() {
 
 function downloadResult(format) {
     if (!lastResult) return;
+    var content = lastResult;
     var mime = format === 'md' ? 'text/markdown' : 'text/plain';
-    var blob = new Blob([lastResult], { type: mime });
+    if (format === 'rtf') {
+        try {
+            content = renderHHResumeRTF(parseToHHModel(lastResult));
+        } catch (e) {
+            showToast('\u041e\u0448\u0438\u0431\u043a\u0430 \u0444\u043e\u0440\u043c\u0438\u0440\u043e\u0432\u0430\u043d\u0438\u044f RTF: ' + (e && e.message || e), 'error');
+            return;
+        }
+        mime = 'application/rtf';
+    }
+    var blob = new Blob([content], { type: mime });
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
     a.href = url;
