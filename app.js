@@ -1,6 +1,7 @@
 // ===================== STATE =====================
-var defaultAtriaKey = 'atr_QH0hvLLGd-3JG-GwWz-tAW7ren6R_eh2';
-var apiKey = localStorage.getItem('resume_ai_key') || defaultAtriaKey;
+var APP_VERSION = 'v3-hh';
+console.log('[AI Resume Enhancer] app.js ' + APP_VERSION + ' loaded');
+var apiKey = localStorage.getItem('resume_ai_key') || '';
 var apiProvider = localStorage.getItem('resume_ai_provider') || 'atria';
 var apiModel = localStorage.getItem('resume_ai_model') || 'Atria-Dawn-Preview';
 var PROXY_URL = localStorage.getItem('resume_ai_proxy') || '';
@@ -13,17 +14,10 @@ var lastChanges = null;
 // ===================== AUTH STATE =====================
 var currentUser = JSON.parse(localStorage.getItem('resume_current_user') || 'null');
 var pendingRegistration = null;
-var ADMIN_EMAIL = 'maksonfantank@gmail.ru';
-var ADMIN_PASSWORD = '7777';
 var COST_PER_REQUEST = 50;
 
 function getUsers() {
-    var users = JSON.parse(localStorage.getItem('resume_users') || '[]');
-    if (!users.some(function(u) { return u.email === ADMIN_EMAIL; })) {
-        users.push({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD, role: 'admin', confirmed: true, balance: 999999, totalSpent: 0 });
-        localStorage.setItem('resume_users', JSON.stringify(users));
-    }
-    return users;
+    return JSON.parse(localStorage.getItem('resume_users') || '[]');
 }
 
 function saveUsers(users) { localStorage.setItem('resume_users', JSON.stringify(users)); }
@@ -65,12 +59,97 @@ function getSelectedPromptMode() {
     return checked ? checked.value : 'standardize';
 }
 
+function rtfToText(rtf) {
+    var CP1251_HI = ['Ђ','Ѓ','‚','ѓ','„','…','†','‡','€','‰','Љ','‹','Њ','Ќ','Ћ','Џ',
+        'ђ','\u2018','\u2019','\u201C','\u201D','\u2022','\u2013','\u2014','','\u2122','љ','›','њ','ќ','ћ','џ',
+        '\u00A0','Ў','ў','','\u00A4','Ґ','\u00A6','\u00A7','Ё','\u00A9','Є','\u00AB','\u00AC','\u00AD','\u00AE','Ї',
+        '\u00B0','\u00B1','І','і','ґ','\u00B5','\u00B6','\u00B7','ё','\u2116','є','\u00BB','ј','Ѕ','ї',''];
+    function byteToChar(code) {
+        if (code < 0x80) return String.fromCharCode(code);
+        if (code >= 0xC0) return String.fromCharCode(0x0410 + (code - 0xC0));
+        return CP1251_HI[code - 0x80] || '';
+    }
+    var out = [];
+    var len = rtf.length;
+    var i = 0, depth = 0, skipFrom = -1;
+    var reWord = /[a-zA-Z]/, reDigit = /[-0-9]/;
+    var SKIP_GROUPS = { pict: 1, fonttbl: 1, colortbl: 1, stylesheet: 1, info: 1, generator: 1,
+        xmlnstbl: 1, rsidtbl: 1, data: 1, datastore: 1, object: 1, objdata: 1, objclsid: 1,
+        latentstyles: 1, listtable: 1, listoverridetable: 1, mmathPr: 1, ftnsep: 1, ftnsepc: 1,
+        aftnsep: 1, aftnsepc: 1, wgrffmtfilter: 1, userprops: 1, docparts: 1, private: 1,
+        footer: 1, footerl: 1, footerr: 1, header: 1, headerl: 1, headerf: 1, textbox: 1 };
+    var LINE_BREAK_WORDS = { par: 1, line: 1, cell: 1, row: 1, nestrow: 1, sectd: 1 };
+    var pendingDestination = false;
+    while (i < len) {
+        var ch = rtf.charAt(i);
+        if (skipFrom >= 0) {
+            if (ch === '{') depth++;
+            else if (ch === '}') { depth--; if (depth < skipFrom) skipFrom = -1; }
+            i++;
+            continue;
+        }
+        if (ch === '\\' && rtf.charAt(i + 1) === "'") {
+            var code = parseInt(rtf.substr(i + 2, 2), 16);
+            if (!isNaN(code)) out.push(byteToChar(code));
+            i += 4;
+            continue;
+        }
+        if (ch === '\\') {
+            var next = rtf.charAt(i + 1);
+            if (next === '~' || next === ':') { out.push(' '); i += 2; continue; }
+            if (next === '*') { pendingDestination = true; i += 2; continue; }
+            if (next === '_' || next === '-') { i += 2; continue; }
+            if (next === '{' || next === '}' || next === '\\') { out.push(next); i += 2; continue; }
+            var word = '';
+            var j = i + 1;
+            while (j < len && reWord.test(rtf.charAt(j))) { word += rtf.charAt(j); j++; }
+            while (j < len && reDigit.test(rtf.charAt(j))) j++;
+            if (rtf.charAt(j) === ' ') j++;
+            if (word) {
+                if (pendingDestination || (SKIP_GROUPS[word] && i > 0 && rtf.charAt(i - 1) === '{')) {
+                    skipFrom = depth;
+                    pendingDestination = false;
+                } else if (LINE_BREAK_WORDS[word]) {
+                    out.push('\n');
+                } else if (word === 'tab') {
+                    out.push(' ');
+                } else if (word === 'emdash' || word === 'endash') {
+                    out.push(word === 'emdash' ? '—' : '–');
+                }
+            }
+            i = j;
+            continue;
+        }
+        if (ch === '{') { depth++; i++; continue; }
+        if (ch === '}') { depth--; i++; continue; }
+        if (ch.charCodeAt(0) < 32) { i++; continue; }
+        out.push(ch);
+        i++;
+    }
+    var joined = out.join('').replace(/\r/g, '\n');
+    var parts = joined.split('\n').map(function(l) { return l.trim(); }).filter(function(l) { return l.length > 0; });
+    for (var p = parts.length - 1; p >= 0; p--) {
+        if (/^(руб|руб\.|₽|\$|€)$/i.test(parts[p]) && p > 0) {
+            parts[p - 1] = parts[p - 1] + ' ' + parts[p];
+            parts.splice(p, 1);
+        }
+    }
+    return parts.join('\n');
+}
+
 function handleFileUpload(event) {
     var file = event.target.files[0];
     if (!file) return;
     var reader = new FileReader();
     reader.onload = function(e) {
         var text = e.target.result;
+        if (file.name.toLowerCase().endsWith('.rtf')) {
+            text = rtfToText(text);
+            if (!text.replace(/\s/g, '').length) {
+                showToast('\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0438\u0437\u0432\u043b\u0435\u0447\u044c \u0442\u0435\u043a\u0441\u0442 \u0438\u0437 RTF', 'error');
+                return;
+            }
+        }
         document.getElementById('resumeInput').value = text;
         updateCharCount();
         showToast('\u0424\u0430\u0439\u043b \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d: ' + file.name, 'success');
@@ -78,11 +157,7 @@ function handleFileUpload(event) {
     reader.onerror = function() {
         showToast('\u041e\u0448\u0438\u0431\u043a\u0430 \u0447\u0442\u0435\u043d\u0438\u044f \u0444\u0430\u0439\u043b\u0430', 'error');
     };
-    if (file.name.endsWith('.txt') || file.name.endsWith('.rtf')) {
-        reader.readAsText(file);
-    } else {
-        reader.readAsText(file);
-    }
+    reader.readAsText(file);
     event.target.value = '';
 }
 
@@ -340,9 +415,10 @@ function doConfirm() {
         errEl.classList.remove('hidden'); return;
     }
     var users = getUsers();
-    users.push({ email: pendingRegistration.email, password: pendingRegistration.password, role: 'user', confirmed: true });
+    var role = users.length === 0 ? 'admin' : 'user';
+    users.push({ email: pendingRegistration.email, password: pendingRegistration.password, role: role, confirmed: true });
     saveUsers(users);
-    currentUser = { email: pendingRegistration.email, role: 'user' };
+    currentUser = { email: pendingRegistration.email, role: role };
     localStorage.setItem('resume_current_user', JSON.stringify(currentUser));
     pendingRegistration = null;
     closeAuthModal();
@@ -491,7 +567,29 @@ function buildSystemPrompt(mode, jobTitle, platform) {
     var pNames = { hh: 'hh.ru', linkedin: 'LinkedIn', habr: 'Habr Career', ats: 'ATS (Workday, Greenhouse)' };
     var pName = pNames[platform] || 'hh.ru';
 
-    var baseRules = 'RESPONSE FORMAT: Return EXACTLY in this format:\n===IMPROVED_RESUME===\n[resume]\n\n===CHANGES===\n[+ added, - removed, ~ modified]\n\nRULES:\n- Keep ALL original facts (names, dates, companies, projects)\n- Never invent work experience that wasn\'t in the original\n- You MAY invent realistic supplementary details (certifications, soft skills, brief objective) ONLY if clearly missing\n- Output in the SAME language as the input resume';
+    var isEn = platform === 'linkedin';
+    var formatSpec = isEn ?
+        'TARGET OUTPUT FORMAT — plain-text resume, EXACTLY this section order and names:\n\n' +
+        '{Full name}\n{Gender}, {age} years old\n{Phone}\n{Email}\nLives in: {City}\n\n' +
+        'SUMMARY\n{2-3 sentences}\n\n' +
+        'DESIRED POSITION\n{Position}\n{Field}\nFull-time\n{Salary expectation}\n\n' +
+        'EXPERIENCE\n{Total experience}\n\n{Month Year} — {Present / Month Year}\n{Duration at this job}\n{Company}\n{City}\n{Industry}\n{Position}\n{3-6 lines of duties and achievements}\n\n' +
+        'EDUCATION\n{Year}\n{University}, {City}\n{Faculty}, {Major}\n\n' +
+        'COURSES / CERTIFICATIONS\n{Year}\n{Course}\n{Provider}\n\n' +
+        'KEY SKILLS\nLANGUAGES\n{Language} {Level}\n\nSKILLS\n{Skill}\n\n' +
+        'ADDITIONAL INFORMATION\nREFERENCES\n{Organization}\n{Name} ({Position}). {Phone}\n'
+        :
+        'TARGET OUTPUT FORMAT — резюме в стиле hh.ru. Выведи РОВНО в таком порядке разделов и с такими названиями разделов, простой текст, без markdown и таблиц:\n\n' +
+        '{ФИО полностью}\n{Пол}, {возраст} лет, родился {дата рождения}\n{Телефон}\n{Email}\nПроживает: {Город}\nГражданство: {Гражданство}\n\n' +
+        'Сопроводительное письмо\n{Текст письма, если есть}\n\n' +
+        'Желаемая должность и зарплата\n{Желаемая должность}\n{Сфера деятельности}\nПолная занятость, полный день\n{Зарплата} руб.\n\n' +
+        'Опыт работы\n{Общий стаж, например: 5 лет 3 месяца}\n\n{Месяц Год} — {настоящее время}\n{Длительность на этом месте}\n{Название компании}\n{Город}\n{Сфера деятельности компании}\n{Должность}\n{Обязанности и достижения, 3-6 строк}\n\n...{каждое место работы в обратном хронологическом порядке}\n\n' +
+        'Высшее образование\n{Год окончания}\n{Название ВУЗа}, {Город}\n{Факультет}, {Специальность}\n\n' +
+        'Повышение квалификации, курсы\n{Год}\n{Название курса}\n{Учебный центр}\n\n' +
+        'Ключевые навыки\nЗнание языков\n{Язык} {Уровень}\n\nНавыки\n{Навык}\n\n' +
+        'Дополнительная информация\nРекомендации\n{Организация}\n{ФИО} ({Должность}). {Телефон}\n';
+
+    var baseRules = 'RESPONSE FORMAT: Return EXACTLY in this format:\n===IMPROVED_RESUME===\n[resume]\n\n===CHANGES===\n[+ added, - removed, ~ modified]\n\nRULES:\n- Keep ALL original facts (names, dates, companies, projects)\n- Never invent work experience that wasn\'t in the original\n- You MAY invent realistic supplementary details ONLY if clearly missing\n- If contact or personal data is missing, output a placeholder in [square brackets], e.g. [Укажите телефон]\n- Output in the SAME language as the input resume\n\n' + formatSpec;
 
     var prompts = {
         standardize: 'You are an expert resume writer specializing in ' + pName + '. TASK: Standardize the resume to match ' + pName + ' best practices. ' +
@@ -699,142 +797,12 @@ function generateJobSummary(jobTitle, skills, experience) {
     return '\u0426\u0435\u043b\u0435\u0432\u043e\u0435 \u0440\u0435\u0437\u044e\u043c\u0435: \u041f\u0440\u043e\u0444\u0435\u0441\u0441\u0438\u043e\u043d\u0430\u043b \u043d\u0430 \u043f\u043e\u0437\u0438\u0446\u0438\u044e \u00ab' + (jobTitle || '\u0441\u043f\u0435\u0446\u0438\u0430\u043b\u0438\u0441\u0442') + '\u00bb. \u0412\u043b\u0430\u0434\u0435\u044e \u043a\u043e\u043c\u043f\u0435\u0442\u0435\u043d\u0446\u0438\u044f\u043c\u0438 \u0432 \u043e\u0431\u043b\u0430\u0441\u0442\u0438: ' + skillList + '. ' + (years ? '\u0418\u043c\u0435\u044e ' + years + '.' : '') + ' \u0421\u0442\u0440\u0435\u043c\u043b\u044e\u0441\u044c \u043a \u0434\u043e\u0441\u0442\u0438\u0436\u0435\u043d\u0438\u044e \u0438\u0437\u043c\u0435\u0440\u044f\u0435\u043c\u044b\u0445 \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442\u043e\u0432 \u0438 \u043f\u0440\u043e\u0444\u0435\u0441\u0441\u0438\u043e\u043d\u0430\u043b\u044c\u043d\u043e\u0433\u043e \u0440\u043e\u0441\u0442\u0430.';
 }
 
-function generateEnhancedResume(resumeText, jobTitle) {
-    var sections = parseResumeSections(resumeText);
-    var jobKeywords = extractJobKeywords(jobTitle);
-    var skills = extractSkills(resumeText);
-    var issues = analyzeWeaknesses(resumeText, jobTitle);
-    var allChanges = [];
-    var missingSections = [];
-    var passiveFixes = detectWeakPhrases(resumeText);
-
-    var enhanced = [];
-    var jobUpper = jobTitle ? jobTitle.toUpperCase() : '\u041f\u0420\u041e\u0424\u0415\u0421\u0421\u0418\u041e\u041d\u0410\u041b\u042c\u041d\u041e\u0415 \u0420\u0415\u0417\u042e\u041c\u0415';
-
-    enhanced.push(jobUpper);
-    enhanced.push('');
-
-    if (!sections.summary.length && !sections.header.length) {
-        enhanced.push('\u0426\u0415\u041b\u0415\u0412\u041e\u0415 \u0420\u0415\u0417\u042e\u041c\u0415 \u2014 ' + (jobTitle || '\u0421\u043f\u0435\u0446\u0438\u0430\u043b\u0438\u0441\u0442'));
-        enhanced.push('');
-    }
-
-    if (sections.header.length) {
-        sections.header.forEach(function(line) {
-            enhanced.push(line);
-        });
-        enhanced.push('');
-    }
-
-    if (sections.summary.length) {
-        enhanced.push('\u0426\u0415\u041b\u0415\u0412\u041e\u0415 \u0420\u0415\u0417\u042e\u041c\u0415');
-        var summaryText = sections.summary.join(' ');
-        if (jobTitle && summaryText.toLowerCase().indexOf(jobTitle.toLowerCase()) === -1) {
-            summaryText = '\u041f\u0440\u043e\u0444\u0435\u0441\u0441\u0438\u043e\u043d\u0430\u043b \u0432 \u043e\u0431\u043b\u0430\u0441\u0442\u0438 ' + (jobTitle || '\u043f\u0440\u043e\u0444\u0438\u043b\u044f') + '. ' + summaryText;
-            allChanges.push({ type: 'modify', text: '\u0412 \u0432\u0432\u0435\u0434\u0435\u043d\u0438\u0438 \u0434\u043e\u0431\u0430\u0432\u043b\u0435\u043d\u043e \u0443\u043f\u043e\u043c\u0438\u043d\u0430\u043d\u0438\u0435 \u043e \u0446\u0435\u043b\u0435\u0432\u043e\u0439 \u043f\u043e\u0437\u0438\u0446\u0438\u0438: ' + (jobTitle || '\u0441\u043f\u0435\u0446\u0438\u0430\u043b\u0438\u0441\u0442') });
-        }
-        enhanced.push(summaryText);
-        enhanced.push('');
-    } else {
-        enhanced.push('\u0426\u0415\u041b\u0415\u0412\u041e\u0415 \u0420\u0415\u0417\u042e\u041c\u0415');
-        enhanced.push(generateJobSummary(jobTitle, skills, sections.experience));
-        enhanced.push('');
-        missingSections.push('\u0414\u043e\u0431\u0430\u0432\u043b\u0435\u043d\u043e \u0432\u0432\u0435\u0434\u0435\u043d\u0438\u0435/\u0441\u0430\u043c\u043c\u0430\u0440\u0438');
-        allChanges.push({ type: 'add', text: '\u0421\u043e\u0437\u0434\u0430\u043d\u043e \u0432\u0432\u0435\u0434\u0435\u043d\u0438\u0435 \u0441 \u0430\u043a\u0446\u0435\u043d\u0442\u043e\u043c \u043d\u0430 \u0446\u0435\u043b\u0435\u0432\u0443\u044e \u043f\u043e\u0437\u0438\u0446\u0438\u044e: ' + (jobTitle || '\u0441\u043f\u0435\u0446\u0438\u0430\u043b\u0438\u0441\u0442') });
-    }
-
-    if (sections.experience.length) {
-        enhanced.push('\u041e\u041f\u042b\u0422 \u0420\u0410\u0411\u041e\u0422\u042b');
-        sections.experience.forEach(function(line) {
-            var enhancedLine = rewriteLine(line, jobKeywords, passiveFixes);
-            var lower = enhancedLine.toLowerCase();
-            if (/[1-9]\d*\s*(%|\u043f\u0440\u043e\u0446\u0435\u043d\u0442|\u043c\u043b\u043d)/.test(enhancedLine)) {
-                allChanges.push({ type: 'modify', text: '\u0421\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u0430 \u043c\u0435\u0442\u0440\u0438\u043a\u0430: "' + enhancedLine.substring(0, 60) + '..."' });
-            }
-            if (enhancedLine !== line) {
-                allChanges.push({ type: 'modify', text: '\u041f\u0435\u0440\u0435\u0444\u043e\u0440\u043c\u0443\u043b\u0438\u0440\u043e\u0432\u0430\u043d\u043e: "' + line.substring(0, 50) + '" \u2192 "' + enhancedLine.substring(0, 50) + '"' });
-            }
-            if (jobKeywords.length > 0) {
-                var matched = jobKeywords.filter(function(kw) { return lower.indexOf(kw.toLowerCase()) !== -1; });
-                if (matched.length > 0) {
-                    allChanges.push({ type: 'add', text: '\u0414\u043e\u0431\u0430\u0432\u043b\u0435\u043d\u044b \u043a\u043b\u044e\u0447\u0435\u0432\u044b\u0435 \u0441\u043b\u043e\u0432\u0430: ' + matched.join(', ') });
-                }
-            }
-            enhanced.push(enhancedLine);
-        });
-        enhanced.push('');
-    }
-
-    if (skills.length) {
-        enhanced.push('\u041a\u0412\u0410\u041b\u0418\u0424\u0418\u041a\u0410\u0426\u0418\u0418');
-        var prioritized = skills.slice();
-        if (jobKeywords.length > 0) {
-            prioritized.sort(function(a, b) {
-                var aMatch = jobKeywords.some(function(kw) { return a.toLowerCase().indexOf(kw.toLowerCase()) !== -1; });
-                var bMatch = jobKeywords.some(function(kw) { return b.toLowerCase().indexOf(kw.toLowerCase()) !== -1; });
-                if (aMatch && !bMatch) return -1;
-                if (!aMatch && bMatch) return 1;
-                return 0;
-            });
-        }
-        enhanced.push('\u2022 ' + prioritized.join(' \u2022 '));
-        enhanced.push('');
-        allChanges.push({ type: 'modify', text: '\u041d\u0430\u0432\u044b\u043a\u0438 \u043f\u0435\u0440\u0435\u0443\u043f\u043e\u0440\u044f\u0434\u043e\u0447\u0435\u043d\u044b \u043f\u043e \u0440\u0435\u043b\u0435\u0432\u0430\u043d\u0442\u043d\u043e\u0441\u0442\u0438 \u043a \u043f\u043e\u0437\u0438\u0446\u0438\u0438' });
-    }
-
-    if (sections.education.length) {
-        enhanced.push('\u041e\u0411\u0420\u0410\u0417\u041e\u0412\u0410\u041d\u0418\u0415');
-        sections.education.forEach(function(line) { enhanced.push(line); });
-        enhanced.push('');
-    }
-
-    if (sections.skills.length && !skills.length) {
-        enhanced.push('\u041d\u0410\u0412\u042b\u041a\u0418');
-        sections.skills.forEach(function(line) {
-            enhanced.push('\u2022 ' + line);
-        });
-        enhanced.push('');
-    }
-
-    if (jobKeywords.length > 0 && skills.length < 5) {
-        var missing = jobKeywords.filter(function(kw) {
-            return skills.some(function(s) { return s.toLowerCase().indexOf(kw.toLowerCase()) !== -1; }) === false;
-        }).slice(0, 5);
-        if (missing.length > 0) {
-            allChanges.push({ type: 'add', text: '\u0420\u0435\u043a\u043e\u043c\u0435\u043d\u0434\u0443\u0435\u0442\u0441\u044f \u0434\u043e\u0431\u0430\u0432\u0438\u0442\u044c \u043d\u0430\u0432\u044b\u043a\u0438 \u0434\u043b\u044f \u043f\u043e\u0437\u0438\u0446\u0438\u0438: ' + missing.join(', ') });
-        }
-    }
-
-    passiveFixes.forEach(function(pf) {
-        allChanges.push({ type: 'modify', text: '\u0417\u0430\u043c\u0435\u043d\u0435\u043d\u044b \u043f\u0430\u0441\u0441\u0438\u0432\u043d\u044b\u0435 \u0433\u043b\u0430\u0433\u043e\u043b\u044b: "' + pf.pattern.source + '" \u2192 "' + pf.fix + '"' });
-    });
-
-    if (missingSections.length) {
-        missingSections.forEach(function(ms) {
-            allChanges.push({ type: 'add', text: '\u0414\u043e\u0431\u0430\u0432\u043b\u0435\u043d \u043d\u0435\u0434\u043e\u0441\u0442\u0430\u044e\u0449\u0438\u0439 \u0440\u0430\u0437\u0434\u0435\u043b: ' + ms });
-        });
-    }
-
-    allChanges.push({ type: 'modify', text: '\u0421\u0442\u0440\u0443\u043a\u0442\u0443\u0440\u0430 \u0440\u0435\u0437\u044e\u043c\u0435 \u043e\u043f\u0442\u0438\u043c\u0438\u0437\u0438\u0440\u043e\u0432\u0430\u043d\u0430 \u043f\u043e\u0434 \u043f\u043e\u0437\u0438\u0446\u0438\u044e: ' + (jobTitle || '\u0441\u043f\u0435\u0446\u0438\u0430\u043b\u0438\u0441\u0442') });
-
-    return { resume: enhanced.join('\n'), changes: allChanges, missingSections: missingSections };
-}
-
 // ===================== DEMO MODE =====================
 function generateDemoResult(resumeText, jobTitle) {
     return new Promise(function(resolve) {
-        var delay = 1500 + Math.random() * 1500;
+        var delay = 1200 + Math.random() * 1300;
         var mode = getSelectedPromptMode();
-        var result;
-        if (mode === 'rewrite') {
-            result = generateEnhancedResume(resumeText, jobTitle);
-        } else if (mode === 'optimize') {
-            result = generateOptimizedResume(resumeText, jobTitle);
-        } else if (mode === 'tailor') {
-            result = generateTailoredResume(resumeText, jobTitle);
-        } else {
-            result = generateEnhancedResume(resumeText, jobTitle);
-        }
+        var result = processHHResume(resumeText, jobTitle, mode);
         var score = calculateATSScore(result.resume, selectedPlatform);
         setTimeout(function() {
             resolve({ resume: result.resume, changes: result.changes, score: score });
@@ -842,58 +810,515 @@ function generateDemoResult(resumeText, jobTitle) {
     });
 }
 
-function generateOptimizedResume(resumeText, jobTitle) {
-    var lines = resumeText.split('\n');
-    var enhanced = [];
-    var changes = [];
-    var passiveMap = {
-        '\u0437\u0430\u043d\u0438\u043c\u0430\u043b\u0441\u044f': '\u0443\u0441\u043f\u0435\u0448\u043d\u043e \u0432\u044b\u043f\u043e\u043b\u043d\u044f\u043b',
-        '\u043e\u0441\u0443\u0449\u0435\u0441\u0442\u0432\u043b\u044f\u043b': '\u0440\u0435\u0430\u043b\u0438\u0437\u043e\u0432\u0430\u043b',
-        '\u0432\u044b\u043f\u043e\u043b\u043d\u044f\u043b': '\u043e\u0431\u0435\u0441\u043f\u0435\u0447\u0438\u043b',
-        '\u043f\u0440\u043e\u0432\u043e\u0434\u0438\u043b': '\u043e\u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0438\u043b',
-        '\u0434\u0435\u043b\u0430\u043b': '\u0432\u044b\u043f\u043e\u043b\u043d\u044f\u043b',
-        '\u0437\u0430\u043d\u0438\u043c\u0430\u043b\u0430\u0441\u044c': '\u0443\u0441\u043f\u0435\u0448\u043d\u043e \u0432\u044b\u043f\u043e\u043b\u043d\u044f\u043b',
-        '\u0431\u044b\u043b \u043e\u0442\u0432\u0435\u0442\u0441\u0442\u0432\u0435\u043d\u043d\u044b\u0439': '\u0443\u0441\u043f\u0435\u0448\u043d\u043e \u043f\u0440\u0438\u0432\u0435\u043b \u043f\u0440\u043e\u0435\u043a\u0442',
-        '\u0443\u0447\u0430\u0441\u0442\u0432\u043e\u0432\u0430\u043b': '\u043e\u0431\u0435\u0441\u043f\u0435\u0447\u0438\u043b \u0443\u0447\u0430\u0441\u0442\u0438\u0435 \u0432',
-        '\u0438\u043c\u0435\u043b \u043e\u043f\u044b\u0442': '\u0440\u0430\u0441\u043f\u043e\u043b\u0430\u0433\u0430\u043b \u0432\u043b\u0430\u0434\u0435\u043d\u0438\u044f\u043c\u0438 \u0432'
-    };
-    var jobUpper = jobTitle ? jobTitle.toUpperCase() : '\u041f\u0420\u041e\u0424\u0415\u0421\u0421\u0418\u041e\u041d\u0410\u041b\u042c\u041d\u041e\u0415 \u0420\u0415\u0417\u042e\u041c\u0415';
-    enhanced.push(jobUpper);
-    enhanced.push('');
-    lines.forEach(function(line) {
-        var trimmed = line.trim();
-        if (!trimmed) { enhanced.push(''); return; }
-        var newLine = trimmed;
-        Object.keys(passiveMap).forEach(function(passive) {
-            if (newLine.toLowerCase().indexOf(passive) !== -1) {
-                newLine = newLine.replace(new RegExp(passive, 'i'), passiveMap[passive]);
-                changes.push({ type: 'modify', text: '\u00ab' + passive + '\u00bb \u2192 \u00ab' + passiveMap[passive] + '\u00bb \u2014 \u0437\u0430\u043c\u0435\u043d\u0430 \u0433\u043b\u0430\u0433\u043e\u043b\u0430' });
-            }
-        });
-        if (/\d/.test(trimmed) && /[\u2022\-\*]\s/.test(trimmed) && trimmed.length > 30 && trimmed.length < 200) {
-            if (trimmed.indexOf('%') === -1 && trimmed.indexOf('\u2014') === -1) {
-                var m = Math.floor(Math.random() * 40 + 20);
-                if (newLine.indexOf('\u0441\u043e\u043a\u0440\u0430\u0442') === -1) {
-                    newLine = newLine + ', \u0434\u043e\u0441\u0442\u0438\u0433\u043d\u0443\u0432 ' + m + '%';
-                    changes.push({ type: 'add', text: '\u0414\u043e\u0431\u0430\u0432\u043b\u0435\u043d\u0430 \u043c\u0435\u0442\u0440\u0438\u043a\u0430: +' + m + '%' });
-                }
-            }
-        }
-        enhanced.push(newLine);
-    });
-    changes.push({ type: 'modify', text: '\u041e\u043f\u0442\u0438\u043c\u0438\u0437\u0430\u0446\u0438\u044f \u0434\u043b\u044f ' + selectedPlatform.toUpperCase() });
-    return { resume: enhanced.join('\n'), changes: changes };
+// ===================== hh.ru FORMAT ENGINE =====================
+var HH_MONTH_NAMES = ['январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];
+var HH_MONTH_WORDS = [
+    {re: /^янв/i, m: 1}, {re: /^фев/i, m: 2}, {re: /^мар/i, m: 3}, {re: /^апр/i, m: 4},
+    {re: /^ма[йя]/i, m: 5}, {re: /^июн/i, m: 6}, {re: /^июл/i, m: 7}, {re: /^авг/i, m: 8},
+    {re: /^сен/i, m: 9}, {re: /^окт/i, m: 10}, {re: /^ноя/i, m: 11}, {re: /^дек/i, m: 12}
+];
+var HH_MONTH_REGEX = /(?:^|[\s\-\u2014(])(январ|феврал|март|апрел|ма[йя]|июн|июл|август|сентябр|октябр|ноябр|декабр)[ьяеюа]?(?![а-яё])/;
+var HH_CITIES = ['москва','санкт-петербург','спб','питер','волгоград','воронеж','екатеринбург','казань','калининград','краснодар','красноярск','нижний новгород','новосибирск','омск','пермь','ростов-на-дону','самара','саратов','тюмень','уфа','хабаровск','челябинск','ярославль','иркутск','владивосток','мурманск','тула','калуга','подольск','мытищи','долгопрудный','минск','киев','алматы','ташкент','тбилиси','еревань','бишкек','кишинёв'];
+var HH_LANGUAGES = ['русский','английский','немецкий','французский','испанский','итальянский','китайский','японский','корейский','польский','украинский','белорусский','турецкий','арабский','португальский','чешский'];
+
+function hhNorm(s) { return (s || '').trim().replace(/\s+/g, ' '); }
+function hhCapitalize(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
+
+function hhParseMonth(word) {
+    if (!word) return 0;
+    var w = word.toLowerCase();
+    for (var i = 0; i < HH_MONTH_WORDS.length; i++) {
+        if (HH_MONTH_WORDS[i].re.test(w)) return HH_MONTH_WORDS[i].m;
+    }
+    return 0;
 }
 
-function generateTailoredResume(resumeText, jobTitle) {
-    var result = generateEnhancedResume(resumeText, jobTitle);
-    if (jobTitle) {
-        result.changes.unshift({ type: 'add', text: '\u0420\u0435\u0437\u044e\u043c\u0435 \u043f\u0435\u0440\u0441\u043e\u043d\u0430\u043b\u0438\u0437\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u043f\u043e\u0434 \u043f\u043e\u0437\u0438\u0446\u0438\u044e: ' + jobTitle });
-        var lines = result.resume.split('\n');
-        lines[0] = jobTitle.toUpperCase();
-        result.resume = lines.join('\n');
+function hhParseDate(str) {
+    var s = hhNorm(str).toLowerCase();
+    if (!s) return null;
+    var year = null, month = 0;
+    var dmy = s.match(/(\d{1,2})[\.\-/](\d{1,2})[\.\-/](\d{4})/);
+    var my = s.match(/(\d{1,2})[\.\-/](\d{4})/);
+    var ym = s.match(/(\d{4})[\.\-/](\d{1,2})/);
+    var yOnly = s.match(/(\d{4})/);
+    if (dmy) { month = parseInt(dmy[2], 10); year = parseInt(dmy[3], 10); }
+    else if (my) { month = parseInt(my[1], 10); year = parseInt(my[2], 10); }
+    else if (ym) { month = parseInt(ym[2], 10); year = parseInt(ym[1], 10); }
+    else if (yOnly) { year = parseInt(yOnly[1], 10); }
+    var mw = s.match(HH_MONTH_REGEX);
+    if (mw) { var mm = hhParseMonth(mw[1]); if (mm) month = mm; }
+    if (!year || year < 1900 || year > 2100) return null;
+    if (month < 0 || month > 12) month = 0;
+    return { month: month, year: year };
+}
+
+function hhParseDateRangeLine(line) {
+    var s = hhNorm(line);
+    if (!s || s.indexOf('@') !== -1) return null;
+    var lower = s.toLowerCase();
+    var present = /настоящ|наст\.\s*врем|текущ|сегодн|present|now\b/.test(lower);
+    var body = s.replace(/^с\s+/i, '')
+        .replace(/[—–−‒]/g, '|')
+        .replace(/\sпо\s/gi, '|')
+        .replace(/(\d)\s*-\s*(?=\d)/g, '$1|')
+        .replace(/\s-\s/g, '|');
+    var parts = body.split('|').map(function(p) { return p.trim(); }).filter(function(p) { return p.length; });
+    if (!parts.length) return null;
+    var start = hhParseDate(parts[0]);
+    if (!start) return null;
+    var end = null;
+    if (parts.length > 1) {
+        end = hhParseDate(parts[1]);
+        if (!end && present) end = { present: true };
+    } else if (present) {
+        end = { present: true };
     }
-    return result;
+    if (!end) return null;
+    return { start: start, end: end };
+}
+
+function hhPlural(n, one, few, many) {
+    var mod10 = n % 10, mod100 = n % 100;
+    if (mod10 === 1 && mod100 !== 11) return one;
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return few;
+    return many;
+}
+
+function hhFormatDuration(totalMonths) {
+    if (totalMonths <= 0) return '';
+    var years = Math.floor(totalMonths / 12);
+    var months = totalMonths % 12;
+    var parts = [];
+    if (years) parts.push(years + ' ' + hhPlural(years, 'год', 'года', 'лет'));
+    if (months) parts.push(months + ' ' + hhPlural(months, 'месяц', 'месяца', 'месяцев'));
+    return parts.join(' ');
+}
+
+function hhParseDuration(line) {
+    var s = hhNorm(line);
+    var m = s.match(/(\d+)\s*(?:лет|года|год)\s*(?:(\d+)\s*(?:месяц|мес(?:яцев)?))?/i);
+    if (m) return hhFormatDuration(parseInt(m[1], 10) * 12 + (m[2] ? parseInt(m[2], 10) : 0));
+    m = s.match(/(\d+)\s*мес(?:яц|яцев)?/i);
+    if (m) return hhFormatDuration(parseInt(m[1], 10));
+    return null;
+}
+
+function hhMonthYear(d) {
+    if (!d) return '';
+    return (d.month ? hhCapitalize(HH_MONTH_NAMES[d.month - 1]) + ' ' : '') + d.year;
+}
+
+function hhFormatPeriod(job) {
+    var s = hhMonthYear(job.start);
+    var e = (job.end && job.end.present) ? 'настоящее время' : hhMonthYear(job.end);
+    return s + ' — ' + e;
+}
+
+function hhIsCity(line) {
+    var s = hhNorm(line).toLowerCase().replace(/[,.]/g, '');
+    if (!s || s.length > 30 || /\d/.test(s)) return false;
+    return HH_CITIES.indexOf(s) !== -1;
+}
+
+function hhExtractSalary(line) {
+    var s = hhNorm(line);
+    var m = s.match(/([\d][\d\s]{1,})\s*(руб|₽|\$|€|eur|usd)/i);
+    if (m) {
+        var cur = m[2].toLowerCase();
+        return hhNorm(m[1]) + (cur === 'руб' ? ' руб.' : ' ' + cur);
+    }
+    m = s.match(/(\d[\d\s]*)/);
+    return m ? hhNorm(m[1]) + ' руб.' : s;
+}
+
+function hhSalaryLine(salary) {
+    var s = hhNorm(salary);
+    if (/(руб|₽|\$|€|eur|usd)/i.test(s)) return s;
+    return s + ' руб.';
+}
+
+function hhParseLanguage(line) {
+    var s = hhNorm(line);
+    var lower = s.toLowerCase();
+    for (var i = 0; i < HH_LANGUAGES.length; i++) {
+        if (lower.indexOf(HH_LANGUAGES[i]) === 0) {
+            var level = s.substring(HH_LANGUAGES[i].length).replace(/^[\s•—:\-·]+/, '').trim();
+            return { name: hhCapitalize(HH_LANGUAGES[i]), level: level };
+        }
+    }
+    var m = s.match(/^([A-Za-zА-Яа-яЁё]{4,})\s*[—:\-]?\s*(.*)$/);
+    if (m && m[1]) return { name: m[1], level: m[2] || '' };
+    return null;
+}
+
+function parseToHHModel(text) {
+    var raw = String(text || '');
+    var lines = raw.replace(/\r/g, '').split('\n')
+        .map(function(l) { return l.trim(); })
+        .filter(function(l) { return l.length > 0; });
+
+    var model = {
+        name: '', personal: '', phone: '', email: '', city: '', citizenship: '', relocate: '',
+        coverLetter: '', jobTitle: '', sphere: '', employment: 'Полная занятость, полный день',
+        salary: '', totalExperience: '', jobs: [], education: [], courses: [],
+        languages: [], skills: [], references: [], extra: []
+    };
+
+    model.email = (raw.match(/[\w.+-]+@[\w.-]+\.[a-z]{2,}/i) || [])[0] || '';
+    model.phone = (raw.match(/\+?\d[\d\s\-()]{7,}\d/) || [])[0] || '';
+
+    var section = 'header';
+    var curJob = null;
+    var expPreamble = [];
+    var curRef = null;
+
+    var SECTION_HEADERS = {
+        cover: { prefix: ['сопроводительное письмо'], exact: [] },
+        desired: { prefix: ['желаемая должность', 'искомая должность', 'целевая должность'], exact: ['objective'] },
+        experience: { prefix: ['опыт работы', 'трудовая деятельность', 'трудовой стаж', 'employment history', 'work experience'], exact: ['опыт', 'карьера'] },
+        education: { prefix: ['высшее образование', 'среднее образование'], exact: ['образование', 'учёба', 'учеба'] },
+        courses: { prefix: ['повышение квалификации'], exact: ['курсы', 'сертификаты', 'тренинги'] },
+        skills: { prefix: ['ключевые навыки', 'навыки и умения', 'технологический стек', 'стек технологий', 'hard skills', 'soft skills'], exact: ['навыки', 'умения', 'компетенции', 'технологии'] },
+        languages: { prefix: ['знание языков', 'иностранные языки', 'языки общения', 'languages'], exact: ['языки'] },
+        refs: { prefix: [], exact: ['рекомендации', 'рекомендатели', 'references'] },
+        skip: { prefix: ['комментарии к резюме', 'история общения'], exact: ['комментарии'] },
+        extra: { prefix: ['дополнительная информация', 'личные качества'], exact: ['дополнительно', 'о себе', 'интересы', 'хобби'] }
+    };
+
+    function detectSection(line) {
+        var lower = line.toLowerCase().replace(/[:;.]\s*$/, '').trim();
+        if (!lower) return null;
+        var keys = Object.keys(SECTION_HEADERS);
+        for (var i = 0; i < keys.length; i++) {
+            var sec = SECTION_HEADERS[keys[i]];
+            for (var j = 0; j < sec.exact.length; j++) {
+                if (lower === sec.exact[j]) return keys[i];
+            }
+            for (var k = 0; k < sec.prefix.length; k++) {
+                if (lower.indexOf(sec.prefix[k]) === 0) return keys[i];
+            }
+        }
+        return null;
+    }
+
+    lines.forEach(function(line) {
+        var det = detectSection(line);
+        if (det) {
+            if (det === 'experience' && !model.totalExperience) {
+                var detDur = hhParseDuration(line);
+                if (detDur) model.totalExperience = detDur;
+            }
+            section = det;
+            return;
+        }
+
+        if (section === 'header') {
+            var hlower = line.toLowerCase();
+            if (!model.name && !/\d|@/.test(line) && line.length < 60 && !/резюме|обновлено|curriculum| vitae/.test(hlower)) { model.name = line; return; }
+            if (/^(мужчина|женщина)/.test(hlower)) { model.personal = model.personal || line; return; }
+            if (/родил|дата рожд/.test(hlower)) { model.personal = model.personal ? model.personal + ', ' + line : line; return; }
+            if (/прожива|место жительств|адрес|город:/.test(hlower)) { model.city = model.city || line.replace(/^[^:：]*[:：]\s*/, ''); return; }
+            if (hhIsCity(line)) { model.city = model.city || line; return; }
+            if (/гражданство/.test(hlower)) { model.citizenship = line.replace(/^[^:：]*[:：]\s*/, ''); return; }
+            if (/переезд|командиров/.test(hlower)) { model.relocate = line; return; }
+            if (/руб|₽|\$|€|зарплата|оклад/.test(hlower)) { model.salary = model.salary || hhExtractSalary(line); return; }
+            return;
+        }
+
+        if (section === 'cover') {
+            model.coverLetter = model.coverLetter ? model.coverLetter + ' ' + line : line;
+            return;
+        }
+
+        if (section === 'desired') {
+            var dlower = line.toLowerCase();
+            if (/руб|₽|\$|€|зарплата/.test(dlower)) { model.salary = model.salary || hhExtractSalary(line); return; }
+            if (/занятость|график|полный|неполный|смен/.test(dlower)) { model.employment = line; return; }
+            if (!model.jobTitle) { model.jobTitle = line; return; }
+            if (!model.sphere) { model.sphere = line; return; }
+            return;
+        }
+
+        if (section === 'experience') {
+            var range = hhParseDateRangeLine(line);
+            if (range) {
+                curJob = { start: range.start, end: range.end, duration: '', company: '', city: '', sphere: '', position: '', description: [] };
+                model.jobs.push(curJob);
+                return;
+            }
+            var dur = hhParseDuration(line);
+            if (dur) {
+                if (curJob && !curJob.duration) { curJob.duration = dur; return; }
+                if (!curJob) { model.totalExperience = model.totalExperience || dur; return; }
+            }
+            if (!curJob) { expPreamble.push(line); return; }
+            if (!curJob.company) { curJob.company = line; return; }
+            if (!curJob.city) {
+                var dashIdx = line.indexOf(' — ');
+                if (dashIdx !== -1 && hhIsCity(line.substring(0, dashIdx))) {
+                    curJob.city = line.substring(0, dashIdx);
+                    var afterCity = line.substring(dashIdx + 3).trim();
+                    if (afterCity && !curJob.sphere) curJob.sphere = afterCity;
+                    return;
+                }
+                if (hhIsCity(line) || (!/\d|[()«»]/.test(line) && line.length < 25 && !/,/.test(line))) { curJob.city = line; return; }
+            }
+            if (!curJob.sphere && !curJob.position && curJob.description.length === 0 && /,/.test(line) && line.length < 70 && !/[.!?]/.test(line)) { curJob.sphere = line; return; }
+            if (!curJob.position) { curJob.position = line; return; }
+            var lastDesc = curJob.description.length ? curJob.description[curJob.description.length - 1] : null;
+            if (lastDesc && !/[.!?…»"]$/.test(lastDesc) && /^[а-яёa-z(«"•]/i.test(line)) {
+                curJob.description[curJob.description.length - 1] = lastDesc + ' ' + line;
+            } else {
+                curJob.description.push(line);
+            }
+            return;
+        }
+
+        if (section === 'education') {
+            if (/^\d{4}(-\d{4})?$/.test(line)) {
+                model.education.push({ year: line, place: '', faculty: '' });
+                return;
+            }
+            var last = model.education.length ? model.education[model.education.length - 1] : null;
+            if (!last) { model.education.push({ year: '', place: line, faculty: '' }); return; }
+            if (!last.place) { last.place = line; return; }
+            if (!last.faculty) { last.faculty = line; return; }
+            last.faculty += ' ' + line;
+            return;
+        }
+
+        if (section === 'courses') {
+            if (/^\d{4}$/.test(line)) {
+                model.courses.push({ year: line, title: '', org: '' });
+                return;
+            }
+            var lc = model.courses.length ? model.courses[model.courses.length - 1] : null;
+            if (!lc) { model.courses.push({ year: '', title: line, org: '' }); return; }
+            if (!lc.title) { lc.title = line; return; }
+            if (!lc.org) { lc.org = line; return; }
+            lc.org += ' ' + line;
+            return;
+        }
+
+        if (section === 'languages') {
+            var lang = hhParseLanguage(line);
+            if (lang) model.languages.push(lang);
+            return;
+        }
+
+        if (section === 'skills') {
+            if (line.length > 80) {
+                if (line.length < 250 && model.skills.indexOf(line) === -1) model.skills.push(line);
+                return;
+            }
+            line.split(/[,••]+/).forEach(function(part) {
+                var t = part.replace(/^[-\s•]+|[\s•]+$/g, '').trim();
+                if (t && t.length > 1 && t.length < 80 && model.skills.indexOf(t) === -1) model.skills.push(t);
+            });
+            return;
+        }
+
+        if (section === 'refs') {
+            var phoneM = line.match(/\(?\+?\d[\d\s\-()]{6,}\d/);
+            var posM = line.match(/\(([^)]+)\)/);
+            var isOrg = /ООО|ЗАО|ПАО|АО |ИП |компания|«|»/i.test(line) || (!/\(/.test(line) && !/\d/.test(line) && curRef && curRef.name);
+            if (isOrg && !phoneM) {
+                curRef = { org: line, name: '', position: '', phone: '' };
+                model.references.push(curRef);
+                return;
+            }
+            var name = line.replace(/\([^)]*\)/g, '').replace(/\(?\+?\d[\d\s\-()]{4,}\d/g, '').replace(/[.·,]/g, ' ').replace(/\s+/g, ' ').trim();
+            if (!curRef) { curRef = { org: '', name: '', position: '', phone: '' }; model.references.push(curRef); }
+            if (!curRef.name && name) { curRef.name = name; curRef.position = posM ? posM[1] : ''; curRef.phone = phoneM ? phoneM[0] : ''; return; }
+            if (!curRef.org) { curRef.org = line; return; }
+            return;
+        }
+
+        if (section === 'extra') { model.extra.push(line); return; }
+        // section === 'skip' — employer-side notes, ignore
+    });
+
+    if (expPreamble.length && !model.jobs.length) {
+        model.jobs.push({ start: null, end: null, duration: '', company: '', city: '', sphere: '', position: expPreamble[0], description: expPreamble.slice(1) });
+    }
+
+    return model;
+}
+
+function hhTotalMonths(model) {
+    var total = 0;
+    var now = new Date();
+    model.jobs.forEach(function(job) {
+        if (!job.start || !job.end) return;
+        if (job.end.present) total += (now.getFullYear() - job.start.year) * 12 + (now.getMonth() - job.start.month);
+        else total += (job.end.year - job.start.year) * 12 + (job.end.month - job.start.month);
+    });
+    return total;
+}
+
+function renderHHResume(model) {
+    var out = [];
+    out.push(model.name || '[Укажите ФИО]');
+    if (model.personal) out.push(model.personal);
+    if (model.phone) out.push(model.phone);
+    if (model.email) out.push(model.email);
+    if (model.city) out.push('Проживает: ' + model.city);
+    if (model.citizenship) out.push('Гражданство: ' + model.citizenship);
+    if (model.relocate) out.push(model.relocate);
+
+    if (model.coverLetter) {
+        out.push('');
+        out.push('Сопроводительное письмо');
+        out.push(model.coverLetter);
+    }
+
+    if (model.jobTitle || model.sphere || model.salary) {
+        out.push('');
+        out.push('Желаемая должность и зарплата');
+        if (model.jobTitle) out.push(model.jobTitle);
+        if (model.sphere) out.push(model.sphere);
+        out.push(model.employment || 'Полная занятость, полный день');
+        if (model.salary) out.push(hhSalaryLine(model.salary));
+    }
+
+    if (model.jobs.length) {
+        out.push('');
+        out.push('Опыт работы');
+        if (model.totalExperience) out.push(model.totalExperience);
+        model.jobs.forEach(function(job) {
+            out.push('');
+            out.push(job.start ? hhFormatPeriod(job) : '[Укажите период работы]');
+            var dur = job.duration;
+            if (!dur && job.start && job.end) {
+                var months = 0;
+                if (job.end.present) { var n = new Date(); months = (n.getFullYear() - job.start.year) * 12 + (n.getMonth() - job.start.month); }
+                else months = (job.end.year - job.start.year) * 12 + (job.end.month - job.start.month);
+                dur = hhFormatDuration(months);
+            }
+            if (dur) out.push(dur);
+            if (job.company) out.push(job.company);
+            if (job.city) out.push(job.city);
+            if (job.sphere) out.push(job.sphere);
+            if (job.position) out.push(job.position);
+            (job.description || []).forEach(function(d) { out.push(d); });
+        });
+    }
+
+    if (model.education.length) {
+        out.push('');
+        out.push('Высшее образование');
+        model.education.forEach(function(ed) {
+            if (ed.year) out.push(ed.year);
+            if (ed.place) out.push(ed.place);
+            if (ed.faculty) out.push(ed.faculty);
+        });
+    }
+
+    if (model.courses.length) {
+        out.push('');
+        out.push('Повышение квалификации, курсы');
+        model.courses.forEach(function(c) {
+            if (c.year) out.push(c.year);
+            if (c.title) out.push(c.title);
+            if (c.org) out.push(c.org);
+        });
+    }
+
+    if (model.languages.length || model.skills.length) {
+        out.push('');
+        out.push('Ключевые навыки');
+        out.push('Знание языков');
+        if (model.languages.length) {
+            model.languages.forEach(function(l) { out.push(l.name + (l.level ? ' ' + l.level : '')); });
+        } else {
+            out.push('Русский родной');
+        }
+        if (model.skills.length) {
+            out.push('');
+            out.push('Навыки');
+            model.skills.slice(0, 30).forEach(function(s) { out.push(s); });
+        }
+    }
+
+    if (model.extra.length || model.references.length) {
+        out.push('');
+        out.push('Дополнительная информация');
+        model.extra.forEach(function(e) { out.push(e); });
+        if (model.references.length) {
+            out.push('Рекомендации');
+            model.references.forEach(function(r) {
+                if (r.org) out.push(r.org);
+                if (r.name) out.push(r.name + (r.position ? ' (' + r.position + ')' : '') + (r.phone ? '. ' + r.phone : ''));
+            });
+        }
+    }
+
+    return out.join('\n');
+}
+
+function processHHResume(resumeText, jobTitle, mode) {
+    var model = parseToHHModel(resumeText);
+    var changes = [];
+
+    if (jobTitle && (!model.jobTitle || model.jobTitle.toLowerCase() !== jobTitle.toLowerCase())) {
+        model.jobTitle = jobTitle;
+        changes.push({ type: 'add', text: 'Указана желаемая должность: ' + jobTitle });
+    }
+
+    if (!model.totalExperience) {
+        var total = hhTotalMonths(model);
+        model.totalExperience = hhFormatDuration(total);
+        if (total > 0) changes.push({ type: 'modify', text: 'Рассчитан общий стаж на основе дат мест работы: ' + model.totalExperience });
+    }
+
+    if (mode === 'optimize') {
+        var passiveFixes = detectWeakPhrases(resumeText);
+        var jobKeywords = extractJobKeywords(jobTitle || model.jobTitle);
+        model.jobs.forEach(function(job) {
+            job.description = (job.description || []).map(function(line) {
+                var nl = rewriteLine(line, jobKeywords, passiveFixes);
+                if (nl !== line) changes.push({ type: 'modify', text: 'Заменён слабый глагол: «' + line.substring(0, 50) + '»' });
+                return nl;
+            });
+        });
+        var optSkills = model.skills.length === 0 ? extractSkills(resumeText) : [];
+        optSkills.forEach(function(s) {
+            if (s.length > 3 && model.skills.indexOf(s) === -1 && model.skills.length < 25) {
+                model.skills.push(s);
+                changes.push({ type: 'add', text: 'Добавлен навык из текста резюме: ' + s });
+            }
+        });
+    }
+
+    if (mode === 'tailor' && (jobTitle || model.jobTitle)) {
+        var kw = extractJobKeywords(jobTitle || model.jobTitle);
+        if (model.skills.length && kw.length) {
+            model.skills.sort(function(a, b) {
+                var ai = kw.some(function(k) { return a.toLowerCase().indexOf(k.toLowerCase()) !== -1; }) ? 0 : 1;
+                var bi = kw.some(function(k) { return b.toLowerCase().indexOf(k.toLowerCase()) !== -1; }) ? 0 : 1;
+                return ai - bi;
+            });
+            changes.push({ type: 'modify', text: 'Навыки упорядочены по релевантности должности' });
+        }
+        if (jobTitle) changes.push({ type: 'modify', text: 'Резюме персонализировано под позицию: ' + jobTitle });
+    }
+
+    if (mode === 'rewrite' || mode === 'standardize') {
+        var allSkills = model.skills.length === 0 ? extractSkills(resumeText) : [];
+        allSkills.forEach(function(s) {
+            if (s.length > 3 && model.skills.indexOf(s) === -1 && model.skills.length < 25) model.skills.push(s);
+        });
+    }
+
+    var issues = analyzeWeaknesses(resumeText, jobTitle || model.jobTitle);
+    issues.forEach(function(issue) {
+        changes.push({ type: 'add', text: 'Рекомендация: ' + issue.detail });
+    });
+
+    if (!model.languages.length) changes.push({ type: 'add', text: 'Добавлен раздел «Знание языков» (русский — родной)' });
+    changes.push({ type: 'modify', text: 'Резюме приведено к формату hh.ru: контакты, желаемая должность, опыт работы с периодами, образование, ключевые навыки, рекомендации' });
+
+    return { resume: renderHHResume(model), changes: changes };
 }
 
 // ===================== AI REQUEST =====================
@@ -1004,8 +1429,12 @@ async function enhanceResume() {
 
         // Deduct balance for non-admin users
         if (currentUser && !isAdmin()) {
-            updateUserBalance(currentUser.email, -COST_PER_REQUEST);
-            updateAuthUI();
+            try {
+                updateUserBalance(currentUser.email, -COST_PER_REQUEST);
+                updateAuthUI();
+            } catch (balErr) {
+                console.warn('Balance update failed:', balErr);
+            }
         }
 
         lastResult = result.resume;
