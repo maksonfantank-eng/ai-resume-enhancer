@@ -224,6 +224,56 @@
                     </div>
                 </div>
 
+                <div class="glass-card rounded-2xl p-5 neon-border" id="formSection">
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="flex items-center gap-2 font-display font-semibold text-sm text-gray-300">
+                            <i data-lucide="clipboard-list" class="w-4 h-4 text-neon-emerald"></i>
+                            Анкета — файл под ваши данные
+                        </label>
+                        <span class="text-[10px] text-gray-600">пустое допишет ИИ по профессии</span>
+                    </div>
+                    <p class="text-[11px] text-gray-500 mb-4">Заполните что знаете. Обязательно — профессия. Недостающее (навыки, обязанности, образование и т.д.) сгенерирует подключенная нейросеть под вашу профессию, а файл соберется по шаблону hh.ru из папки.</p>
+                    <div class="space-y-4">
+                        <div>
+                            <p class="text-xs font-medium text-neon-purple mb-2">Шаг 1 — Контакты</p>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <input id="f_fullName" type="text" placeholder="ФИО полностью" class="glass-input rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600">
+                                <input id="f_birth" type="text" placeholder="Пол, возраст / дата рождения" class="glass-input rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600">
+                                <input id="f_phone" type="text" placeholder="Телефон" class="glass-input rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600">
+                                <input id="f_email" type="email" placeholder="Email" class="glass-input rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600">
+                                <input id="f_city" type="text" placeholder="Город" class="glass-input rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600">
+                                <input id="f_citizenship" type="text" placeholder="Гражданство" class="glass-input rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600">
+                            </div>
+                        </div>
+                        <div>
+                            <p class="text-xs font-medium text-neon-cyan mb-2">Шаг 2 — Желаемая должность *</p>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <input id="f_profession" type="text" placeholder="Профессия (напр. Frontend-разработчик)" class="glass-input rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600">
+                                <input id="f_salary" type="text" placeholder="Зарплата (напр. 150000)" class="glass-input rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600">
+                            </div>
+                            <input id="f_employment" type="text" placeholder="Занятость / формат (напр. полная занятость, удалённо)" class="glass-input w-full rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600 mt-2">
+                        </div>
+                        <div>
+                            <p class="text-xs font-medium text-neon-pink mb-2">Шаг 3 — Опыт и навыки</p>
+                            <textarea id="f_experience" rows="4" placeholder="Опыт работы (компания, должность, годы, что делали). Можно кратко — детали допишет ИИ" class="glass-input w-full rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600 resize-none"></textarea>
+                            <textarea id="f_skills" rows="2" placeholder="Навыки через запятую (если нет — ИИ подберет по профессии)" class="glass-input w-full rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600 resize-none mt-2"></textarea>
+                        </div>
+                        <div>
+                            <p class="text-xs font-medium text-neon-emerald mb-2">Шаг 4 — Образование и языки</p>
+                            <textarea id="f_education" rows="2" placeholder="Образование (ВУЗ, год, специальность)" class="glass-input w-full rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600 resize-none"></textarea>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                                <input id="f_courses" type="text" placeholder="Курсы" class="glass-input rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600">
+                                <input id="f_languages" type="text" placeholder="Языки (напр. Английский B2)" class="glass-input rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600">
+                            </div>
+                            <textarea id="f_extra" rows="2" placeholder="Дополнительно (переезд, командировки, рекомендации...)" class="glass-input w-full rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600 resize-none mt-2"></textarea>
+                        </div>
+                    </div>
+                    <button id="formGenerateBtn" onclick="generateFromForm()" class="btn-gradient w-full rounded-xl py-3.5 mt-4 font-display font-bold text-white text-sm tracking-wide flex items-center justify-center gap-2">
+                        <i data-lucide="file-down" class="w-4 h-4"></i>
+                        <span>Создать файл по моим данным</span>
+                    </button>
+                </div>
+
                 <button id="enhanceBtn" onclick="enhanceResume()" class="btn-gradient w-full rounded-xl py-4 font-display font-bold text-white text-base tracking-wide flex items-center justify-center gap-3">
                     <i data-lucide="wand-2" class="w-5 h-5"></i>
                     <span id="enhanceBtnText">Улучшить резюме через ИИ</span>
@@ -313,6 +363,12 @@
                         </button>
                         <button onclick="downloadResult('rtf')" class="glass-input px-4 py-2 rounded-lg text-xs font-medium text-gray-300 hover:text-white flex items-center gap-2 transition-all hover:border-neon-purple/40" title="Резюме в формате hh.ru (RTF)">
                             <i data-lucide="file-text" class="w-3.5 h-3.5"></i> RTF (hh.ru)
+                        </button>
+                        <button onclick="downloadResult('doc')" class="glass-input px-4 py-2 rounded-lg text-xs font-medium text-gray-300 hover:text-white flex items-center gap-2 transition-all hover:border-neon-purple/40" title="Открыть в Word">
+                            <i data-lucide="file-text" class="w-3.5 h-3.5"></i> DOC (Word)
+                        </button>
+                        <button onclick="downloadResult('pdf')" class="glass-input px-4 py-2 rounded-lg text-xs font-medium text-gray-300 hover:text-white flex items-center gap-2 transition-all hover:border-neon-purple/40" title="Сохранить как PDF через печать">
+                            <i data-lucide="file-text" class="w-3.5 h-3.5"></i> PDF
                         </button>
                         <div class="relative ml-auto">
                             <button onclick="toggleToneMenu()" class="glass-input px-4 py-2 rounded-lg text-xs font-medium text-gray-300 hover:text-white flex items-center gap-2 transition-all hover:border-neon-purple/40">

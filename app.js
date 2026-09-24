@@ -605,15 +605,18 @@ function buildSystemPrompt(mode, jobTitle, platform) {
         'KEY SKILLS\nLANGUAGES\n{Language} {Level}\n\nSKILLS\n{Skill}\n\n' +
         'ADDITIONAL INFORMATION\nREFERENCES\n{Organization}\n{Name} ({Position}). {Phone}\n'
         :
-        'TARGET OUTPUT FORMAT — резюме в стиле hh.ru. Выведи РОВНО в таком порядке разделов и с такими названиями разделов, простой текст, без markdown и таблиц:\n\n' +
-        '{ФИО полностью}\n{Пол}, {возраст} лет, родился {дата рождения}\n{Телефон}\n{Email}\nПроживает: {Город}\nГражданство: {Гражданство}\n\n' +
-        'Сопроводительное письмо\n{Текст письма, если есть}\n\n' +
-        'Желаемая должность и зарплата\n{Желаемая должность}\n{Сфера деятельности}\nПолная занятость, полный день\n{Зарплата} руб.\n\n' +
-        'Опыт работы\n{Общий стаж, например: 5 лет 3 месяца}\n\n{Месяц Год} — {настоящее время}\n{Длительность на этом месте}\n{Название компании}\n{Город}\n{Сфера деятельности компании}\n{Должность}\n{Обязанности и достижения, 3-6 строк}\n\n...{каждое место работы в обратном хронологическом порядке}\n\n' +
+        'TARGET OUTPUT FORMAT — резюме в стиле топ-резюме hh.ru. Выведи РОВНО в таком порядке разделов и с такими названиями разделов, простой текст, без markdown и таблиц:\n\n' +
+        '{ФИО полностью}\n{Пол}, {возраст} лет, родился {дата рождения}\n{Статус поиска: Активно ищет работу / Предложили работу, решает / Рассматривает предложения}\n{Телефон}\n{Email}\n{Город}, {не готов к переезду или готов к переезду}, {не готов к командировкам или готов к командировкам}\n\n' +
+        '{Сопроводительное письмо, если оно есть в исходнике}\n\n' +
+        'Желаемая должность и зарплата\n{Желаемая должность}\n{Сумма} ₽ на руки\nСпециализации:\n{Специализация 1}\n{Специализация 2}\nТип занятости: {полная занятость, частичная занятость, проектная работа/разовое задание}\nФормат работы: {удалённо, на месте работодателя, гибрид}\n\n' +
+        'Опыт работы\n{Общий стаж, например: 5 лет 3 месяца}\n\n{Месяц Год} — {настоящее время}\n{Длительность на этом месте}\n{Название компании}\n{Город}\n{Сфера деятельности компании}\n{Должность}\n{Обязанности и конкретные достижения, 3-6 строк}\n\n...{каждое место работы в обратном хронологическом порядке}\n\n' +
+        'Навыки\nУровни владения навыками\nПродвинутый уровень: {навыки через запятую}\nСредний уровень: {навыки через запятую}\nБазовый уровень: {навыки через запятую}\n\n' +
         'Высшее образование\n{Год окончания}\n{Название ВУЗа}, {Город}\n{Факультет}, {Специальность}\n\n' +
         'Повышение квалификации, курсы\n{Год}\n{Название курса}\n{Учебный центр}\n\n' +
-        'Ключевые навыки\nЗнание языков\n{Язык} {Уровень}\n\nНавыки\n{Навык}\n\n' +
-        'Дополнительная информация\nРекомендации\n{Организация}\n{ФИО} ({Должность}). {Телефон}\n';
+        'Знание языков\n{Язык} — {Уровень, например: Русский — Родной, Английский — B2 — Средне-продвинутый}\n\n' +
+        'Гражданство, время в пути до работы\nГражданство: {Гражданство}\nРазрешение на работу: {Страна}\nЖелательное время в пути до работы: {Не имеет значения}\n\n' +
+        'Дополнительная информация\nРекомендации\n{Организация}\n{ФИО} ({Должность}). {Телефон}\n\n' +
+        'ПРАВИЛО КОНКРЕТНЫХ ДОСТИЖЕНИЙ: в описании КАЖДОГО места работы должен быть измеримый результат с цифрами или процентами. Если в исходном резюме по этому месту работы нет ни одной цифры, выведи отдельной строкой плейсхолдер «[Укажите результат: ...]» и НЕ придумывай цифры, которых не было в исходнике.\n';
 
     var baseRules = 'RESPONSE FORMAT: Return EXACTLY in this format:\n===IMPROVED_RESUME===\n[resume]\n\n===CHANGES===\n[+ added, - removed, ~ modified]\n\nRULES:\n- Keep ALL original facts (names, dates, companies, projects)\n- Never invent work experience that wasn\'t in the original\n- You MAY invent realistic supplementary details ONLY if clearly missing\n- If contact or personal data is missing, output a placeholder in [square brackets], e.g. [Укажите телефон]\n- Output in the SAME language as the input resume\n\n' + formatSpec;
 
@@ -626,7 +629,8 @@ function buildSystemPrompt(mode, jobTitle, platform) {
             '5) SKILLS: Create a dedicated skills section as a comma-separated list. Extract skills from the text and add relevant keywords for ' + pName + '.\n' +
             '6) EDUCATION: Ensure education section exists. If only university is listed, add "[Год окончания]" if missing.\n' +
             '7) FILL MISSING: For clearly missing non-critical fields, add realistic placeholder data in [brackets] or brief realistic additions. Example: if no LinkedIn URL, add "[LinkedIn: ...]". If no photo instruction, add "(фото не требуется)" for ' + pName + '.\n' +
-            '8) FORMATTING: Use ' + (platform === 'ats' ? 'plain text, no special characters' : 'clean bullet points with dashes') + '. No markdown tables.' +
+            '8) FORMATTING: Use ' + (platform === 'ats' ? 'plain text, no special characters' : 'clean bullet points with dashes') + '. No markdown tables.\n' +
+            '9) hh.ru TOP-RESUME FIELDS (when the platform is hh.ru): add the search status («Активно ищет работу» / «Предложили работу, решает» / «Рассматривает предложения»), the salary as «N ₽ на руки», a list of specializations, the SEPARATE fields «Тип занятости» and «Формат работы», the relocation/business-trip readiness line «{Город}, {готов/не готов к переезду}, {готов/не готов к командировкам}», skill levels with the exact hh.ru labels «Продвинутый уровень», «Средний уровень», «Базовый уровень», languages with the CEFR code and its Russian descriptor («Английский — B2 — Средне-продвинутый», «Русский — Родной»), and the «Гражданство, время в пути до работы» block with «Желательное время в пути до работы: Не имеет значения». Keep every section in the order of the target format above.\n' +
             baseRules,
 
         optimize: 'You are an ATS optimization expert for ' + pName + '. TASK: Optimize the resume for maximum ATS score and recruiter impact.\n' +
@@ -977,6 +981,368 @@ function hhParseLanguage(line) {
     return null;
 }
 
+// ===================== hh.ru TOP-RESUME EXTENSIONS =====================
+// Fields that separate a "top" hh.ru resume from a basic one: search status,
+// salary "na ruki", specializations, separate employment / work-format fields,
+// relocation readiness, skill levels, CEFR language levels, citizenship /
+// work permit / commute time and measurable achievements for every job.
+
+var HH_JOB_STATUSES = [
+    { re: /активно\s+ищет|активно\s+ищу|ищу\s+работу|в\s+активном\s+поиске|active\s+search/i, value: 'Активно ищет работу' },
+    { re: /предложили\s+работу|есть\s+оффер|с\s+оффером|оффер\s+на\s+руки/i, value: 'Предложили работу, решает' },
+    { re: /рассматриваю\s+предложени|рассматривает\s+предложени|открыт\w*\s+к\s+предложени|открыт\w*\s+для\s+предложени/i, value: 'Рассматривает предложения' }
+];
+
+function hhDetectJobStatus(text) {
+    var s = String(text || '').toLowerCase();
+    for (var i = 0; i < HH_JOB_STATUSES.length; i++) {
+        if (HH_JOB_STATUSES[i].re.test(s)) return HH_JOB_STATUSES[i].value;
+    }
+    return 'Активно ищет работу';
+}
+
+// Groups digits with a normal space the way hh.ru prints money (400 000).
+function hhGroupDigits(num) {
+    var parts = String(num).split('.');
+    var intPart = parts[0];
+    var grouped = '';
+    while (intPart.length > 3) { grouped = ' ' + intPart.slice(-3) + grouped; intPart = intPart.slice(0, intPart.length - 3); }
+    return intPart + grouped + (parts.length > 1 ? '.' + parts.slice(1).join('.') : '');
+}
+
+// "<sum> ₽ на руки" — hh.ru always quotes the net (hands) salary this way.
+function hhSalaryHandsLine(salary) {
+    var s = hhNorm(String(salary || ''));
+    if (!s || /не\s+указан|договор|по\s+согласованию|нет/i.test(s)) return '';
+    var lower = s.toLowerCase();
+    var currency = '₽';
+    if (/\$|usd/.test(lower)) currency = '$';
+    else if (/€|eur/.test(lower)) currency = '€';
+    var cleaned = s.replace(/на\s+руки|в\s+месяц|в\s+год|рублей|руб\.|руб|₽|rub|\$|€|usd|eur|от|до/gi, ' ');
+    var m = cleaned.match(/[\d][\d\s\.]*/);
+    if (!m) return hhSalaryLine(s);
+    var num = m[0].replace(/\s+/g, '').replace(/\.(?=\d{3}\b)/g, '').replace(/\.$/, '');
+    if (!num) return hhSalaryLine(s);
+    return hhGroupDigits(num) + ' ' + currency + ' на руки';
+}
+
+// hh.ru specializations are picked from a fixed catalogue; we map the title /
+// sphere keywords onto the catalogue entries a top resume would show.
+var HH_SPECIALIZATION_MAP = [
+    { re: /\bcio\b|директор\s+по\s+информационн|it[-\s]?директор/i, value: 'Директор по информационным технологиям (CIO)' },
+    { re: /\bcto\b|технический\s+директор/i, value: 'Технический директор (CTO)' },
+    { re: /тим[-\s]?лид|team\s*lead|руководитель\s+группы|lead\s+developer|руководитель\s+отдела\s+разработк/i, value: 'Руководитель группы разработки' },
+    { re: /devops|dev[-\s]?ops/i, value: 'DevOps-инженер' },
+    { re: /системный\s+администратор|sysadmin|администратор\s+баз\s+данных/i, value: 'Системный администратор' },
+    { re: /разработчик|программист|инженер[-\s]программист|разработка|\bdev\b|developer/i, value: 'Программист, разработчик' },
+    { re: /тестировщик|\bqa\b|автоматизатор|инженер\s+по\s+тестирован|\btest\b/i, value: 'Тестировщик' },
+    { re: /аналитик|analyst/i, value: 'Аналитик' },
+    { re: /продакт|product\s*manager|менеджер\s+продукта/i, value: 'Менеджер продукта' },
+    { re: /проджект|project\s*manager|руководитель\s+проект|менеджер\s+проекта/i, value: 'Менеджер проекта' },
+    { re: /маркетолог|marketing|маркетинг/i, value: 'Маркетолог' },
+    { re: /дизайнер|designer|ui[\/\s]ux|веб[-\s]дизайн/i, value: 'Дизайнер' },
+    { re: /инженер|engineer/i, value: 'Инженер' }
+];
+
+function hhDetectSpecializations(jobTitle, sphere) {
+    var src = ((jobTitle || '') + ' ' + (sphere || '')).toLowerCase();
+    var list = [];
+    var title = hhNorm(jobTitle);
+    if (title) list.push(title);
+    for (var i = 0; i < HH_SPECIALIZATION_MAP.length && list.length < 6; i++) {
+        var spec = HH_SPECIALIZATION_MAP[i];
+        if (!spec.re.test(src)) continue;
+        var dup = false;
+        for (var k = 0; k < list.length; k++) if (list[k].toLowerCase() === spec.value.toLowerCase()) dup = true;
+        if (!dup) list.push(spec.value);
+    }
+    return list;
+}
+
+// "Тип занятости" and "Формат работы" are two separate hh.ru fields.
+function hhDetectEmployment(employment) {
+    var src = hhNorm(String(employment || '')).toLowerCase().replace(/тип\s+занятости\s*[:：]?\s*/, '');
+    var parts = [];
+    if (/полная|полный|full[-\s]?time/.test(src)) parts.push('полная занятость');
+    if (/частичн|неполная|part[-\s]?time/.test(src)) parts.push('частичная занятость');
+    if (/проектн|разов|project\b/.test(src)) parts.push('проектная работа/разовое задание');
+    if (/стажиров|internship/.test(src)) parts.push('стажировка');
+    if (!parts.length) parts.push('полная занятость');
+    return parts.join(', ');
+}
+
+function hhDetectWorkFormat(text) {
+    var src = String(text || '').toLowerCase().replace(/формат\s+работы\s*[:：]?\s*/, ' ');
+    var parts = [];
+    if (/удалён|удален|remote|фриланс|надомн/.test(src)) parts.push('удалённо');
+    if (/гибрид|hybrid|смешанн/.test(src)) parts.push('гибрид');
+    if (/на\s+месте\s+работодатель|на\s+территории\s+работодатель|офис/.test(src)) parts.push('на месте работодателя');
+    if (!parts.length) parts.push('на месте работодателя');
+    var ORDER = ['удалённо', 'на месте работодателя', 'гибрид'];
+    var out = [];
+    for (var i = 0; i < ORDER.length; i++) if (parts.indexOf(ORDER[i]) !== -1) out.push(ORDER[i]);
+    return out;
+}
+
+// "<Город>, <не готов к переезду/готов к переезду>, <готов к командировкам/...>"
+function hhParseRelocateOne(line, city) {
+    var info = { city: '', move: null, trips: null };
+    var s = hhNorm(String(line || ''));
+    var lower = s.toLowerCase();
+    if (!s) { info.city = hhNorm(city || ''); return info; }
+    // explicit "<...>: <city>" form, e.g. "Хочу переехать: Москва"
+    var cm = s.match(/[:：]\s*([А-Яа-яЁёA-Za-z][А-Яа-яЁёA-Za-z\s\.\-]{1,40}?)(?:[,;]|$)/);
+    if (cm) info.city = hhNorm(cm[1]);
+    if (!info.city) {
+        // everything before the readiness part, e.g. "Санкт-Петербург, м. Невский проспект"
+        var chunks = s.split(/[,;]/);
+        var cityParts = [];
+        for (var i = 0; i < chunks.length; i++) {
+            var c = hhNorm(chunks[i]);
+            var cl = c.toLowerCase();
+            if (/готов|переезд|переезж|перееха|командиров/.test(cl)) break;
+            if (!c || c.length > 40) continue;
+            if (/[а-яёa-z]/i.test(c)) cityParts.push(c);
+        }
+        info.city = cityParts.join(', ');
+    }
+    if (/не\s+готов\s+к\s+переезду|переезд\s+не\s+рассматриваю|не\s+рассматриваю\s+переезд/.test(lower)) info.move = false;
+    else if (/готов\s+к\s+переезду|переезд|переезж|перееха|перееду/.test(lower)) info.move = true;
+    if (/не\s+готов\s+к\s+командировк/.test(lower)) info.trips = false;
+    else if (/готов\s+к\s+командировк/.test(lower)) info.trips = true;
+    if (!info.city) info.city = hhNorm(city || '');
+    return info;
+}
+
+// A resume may carry several relocation lines (our own export keeps the
+// residence line and the target-city line apart); merge them into one record.
+function hhParseRelocate(line, city) {
+    var info = { city: '', move: null, trips: null };
+    var parts = String(line || '').split('\n');
+    for (var p = 0; p < parts.length; p++) {
+        var one = hhParseRelocateOne(parts[p], city);
+        if (!info.city && one.city) info.city = one.city;
+        if (info.move === null) info.move = one.move;
+        if (info.trips === null) info.trips = one.trips;
+    }
+    return info;
+}
+
+function hhFormatRelocate(model) {
+    var info = model.relocateInfo || {};
+    var city = info.city || model.city || '';
+    var parts = [];
+    if (city) parts.push(city);
+    parts.push(info.move ? 'готов к переезду' : 'не готов к переезду');
+    parts.push(info.trips ? 'готов к командировкам' : 'не готов к командировкам');
+    return parts.join(', ');
+}
+
+function hhParseCommute(line) {
+    var s = hhNorm(String(line || '')).replace(/^[^:：]*[:：]\s*/, '');
+    if (!s) return 'Не имеет значения';
+    return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+// Language levels: hh.ru pairs the CEFR code with a Russian descriptor.
+var HH_CEFR_LEVELS = [
+    { code: 'A1', name: 'Начальный' }, { code: 'A2', name: 'Элементарный' },
+    { code: 'B1', name: 'Средний' }, { code: 'B2', name: 'Средне-продвинутый' },
+    { code: 'C1', name: 'Свободный' }, { code: 'C2', name: 'Совершенный' }
+];
+var HH_CEFR_LETTERS = { A: 'AА', B: 'BВ', C: 'CС' };
+
+function hhCefrRegex(code) {
+    return new RegExp('(^|[^a-zа-яё])[' + HH_CEFR_LETTERS[code.charAt(0)] + ']' + code.charAt(1) + '([^0-9]|$)', 'i');
+}
+
+function hhNormalizeLanguageLevel(level) {
+    var s = hhNorm(String(level || ''));
+    if (!s) return '';
+    var lower = s.toLowerCase();
+    if (/родн/.test(lower)) return 'Родной';
+    for (var i = 0; i < HH_CEFR_LEVELS.length; i++) {
+        if (hhCefrRegex(HH_CEFR_LEVELS[i].code).test(' ' + lower)) {
+            return HH_CEFR_LEVELS[i].code + ' — ' + HH_CEFR_LEVELS[i].name;
+        }
+    }
+    var WORD_MAP = [
+        { re: /совершенн/, code: 'C2' }, { re: /свободн/, code: 'C1' },
+        { re: /средне[-\s]?продвинут/, code: 'B2' }, { re: /средн/, code: 'B1' },
+        { re: /элементарн/, code: 'A2' }, { re: /начальн|базов|основы/, code: 'A1' }
+    ];
+    for (var j = 0; j < WORD_MAP.length; j++) {
+        if (WORD_MAP[j].re.test(lower)) {
+            var lev = HH_CEFR_LEVELS;
+            for (var k = 0; k < lev.length; k++) if (lev[k].code === WORD_MAP[j].code) return lev[k].code + ' — ' + lev[k].name;
+        }
+    }
+    return s;
+}
+
+function hhFormatLanguage(lang) {
+    var name = hhCapitalize(hhNorm(lang.name));
+    var level = hhNormalizeLanguageLevel(lang.level);
+    return level ? name + ' — ' + level : name;
+}
+
+// Skill levels: hh.ru tiers with the exact labels "Продвинутый уровень",
+// "Средний уровень", "Базовый уровень".
+var HH_SKILL_TIERS = ['Продвинутый уровень', 'Средний уровень', 'Базовый уровень'];
+var HH_SKILL_TIER_EMPTY = {
+    'Продвинутый уровень': '[укажите навыки продвинутого уровня]',
+    'Средний уровень': '[укажите навыки среднего уровня]',
+    'Базовый уровень': '[укажите навыки базового уровня]'
+};
+var HH_SKILL_WEAK = /начальн|основы|базов|школьн|университет|курс|хобби|увлекаюсь|поверхност|знаком|читаю|учил|обучал|студент|первый/;
+var HH_SKILL_STRONG = /большой\s+опыт|многолетн|глубок|владею\s+в\s+совершенстве|твердые|свободно\s+владею|эксперт/;
+
+function hhSkillOccurrences(skill, rawText) {
+    var s = String(skill || '').toLowerCase();
+    if (s.length < 2) return 0;
+    var text = String(rawText || '').toLowerCase();
+    var count = 0, idx = 0;
+    while ((idx = text.indexOf(s, idx)) !== -1) { count++; idx += s.length; }
+    return count;
+}
+
+function hhSkillContextWeak(skill, rawText) {
+    var s = String(skill || '').toLowerCase();
+    var text = String(rawText || '').toLowerCase();
+    if (!s || text.indexOf(s) === -1) return false;
+    var idx = text.indexOf(s);
+    var allWeak = true;
+    while (idx !== -1) {
+        var lineStart = text.lastIndexOf('\n', idx);
+        var lineEnd = text.indexOf('\n', idx);
+        if (lineEnd === -1) lineEnd = text.length;
+        var line = text.substring(lineStart === -1 ? 0 : lineStart, lineEnd);
+        if (!HH_SKILL_WEAK.test(line)) allWeak = false;
+        idx = text.indexOf(s, idx + s.length);
+    }
+    return allWeak;
+}
+
+function hhEnsureSkillLevels(model) {
+    model.skillLevels = model.skillLevels || {};
+    var title = String(model.jobTitle || '') + ' ' + String(model.sphere || '');
+    var raw = String(model._rawText || '');
+    for (var i = 0; i < model.skills.length; i++) {
+        var key = String(model.skills[i]).toLowerCase();
+        if (model.skillLevels[key]) continue;
+        if (HH_SKILL_STRONG.test(String(model.skills[i]).toLowerCase())) model.skillLevels[key] = 'Продвинутый уровень';
+        else if (title.toLowerCase().indexOf(key) !== -1) model.skillLevels[key] = 'Продвинутый уровень';
+        else {
+            var n = hhSkillOccurrences(key, raw);
+            if (n >= 2) model.skillLevels[key] = 'Продвинутый уровень';
+            else if (n === 1 && hhSkillContextWeak(key, raw)) model.skillLevels[key] = 'Базовый уровень';
+            else model.skillLevels[key] = 'Средний уровень';
+        }
+    }
+}
+
+// Total months spent on a job, from the period or from the duration string.
+function hhDurationMonths(line) {
+    var s = hhNorm(String(line || ''));
+    var m = s.match(/(\d+)\s*(?:лет|года|год)\s*(?:(\d+)\s*(?:месяц|мес(?:яцев)?))?/i);
+    if (m) return parseInt(m[1], 10) * 12 + (m[2] ? parseInt(m[2], 10) : 0);
+    m = s.match(/(\d+)\s*мес(?:яц|яцев)?/i);
+    if (m) return parseInt(m[1], 10);
+    return 0;
+}
+
+function hhJobMonths(job) {
+    var months = hhDurationMonths(job.duration);
+    if (months > 0) return months;
+    if (job.start && job.start.year) {
+        var end = job.end || {};
+        if (end.present) { var n = new Date(); months = (n.getFullYear() - job.start.year) * 12 + (n.getMonth() - (job.start.month || 0)); }
+        else if (end.year) months = (end.year - job.start.year) * 12 + ((end.month || 0) - (job.start.month || 0));
+    }
+    return months;
+}
+
+function hhJobHasAchievement(job) {
+    var desc = job.description || [];
+    for (var i = 0; i < desc.length; i++) {
+        if (/\d/.test(desc[i])) return true;
+        if (desc[i].indexOf('[Укажите результат') === 0) return true;
+    }
+    return false;
+}
+
+// Own appended achievement lines are standalone statements, never a wrapped
+// continuation of the previous description.
+function hhIsAchievementLine(line) {
+    return /^Подтверждённый стаж|^Непрерывный стаж|^\[Укажите результат/.test(String(line || ''));
+}
+
+// "Конкретные достижения": every job needs a measurable result. When the
+// description has no digits at all we only use facts that are really there
+// (the tenure) or fall back to an explicit placeholder — never invented numbers.
+function hhEnsureJobAchievements(job) {
+    if (hhJobHasAchievement(job)) return null;
+    var months = hhJobMonths(job);
+    if (months >= 12) {
+        var dur = hhFormatDuration(months);
+        return job.position ? ('Подтверждённый стаж ' + dur + ' на позиции «' + job.position + '»')
+            : 'Непрерывный стаж ' + dur + ' работы на данной позиции';
+    }
+    return '[Укажите результат: например, внедрил решение, повысившее эффективность на 20%]';
+}
+
+// Fills every top-resume field of the model; safe to call more than once.
+function hhEnrichModel(model) {
+    model = model || {};
+    model.jobs = model.jobs || [];
+    model.skills = model.skills || [];
+    model.languages = model.languages || [];
+    model.specializations = model.specializations || [];
+    model.workFormat = model.workFormat || [];
+    model.education = model.education || [];
+    model.courses = model.courses || [];
+    model.references = model.references || [];
+    model.extra = model.extra || [];
+    if (!model.jobStatus) model.jobStatus = hhDetectJobStatus(model._rawText || '');
+    model.employment = hhDetectEmployment(model.employment || 'полная занятость');
+    if (!model.workFormat.length) model.workFormat = hhDetectWorkFormat(model._rawText || '');
+    if (!model.commuteTime) model.commuteTime = hhParseCommute('');
+    model.relocateInfo = hhParseRelocate(model.relocate, model.city);
+    // the residence city leads the line, the relocation target is kept apart
+    if (model.city) model.relocateInfo.city = model.city;
+    if (!model.relocateNote) {
+        var relLines = String(model.relocate || '').split('\n');
+        for (var ri = 0; ri < relLines.length; ri++) {
+            var rl = relLines[ri];
+            if (!/переезд|переезж|перееха/.test(rl.toLowerCase())) continue;
+            var rInfo = hhParseRelocateOne(rl, model.city);
+            var base = model.city || model.relocateInfo.city;
+            if (rInfo.city && base && rInfo.city.toLowerCase() !== base.toLowerCase()) {
+                model.relocateNote = rl;
+                break;
+            }
+        }
+    }
+    // The user's own title is always the first specialization.
+    var specs = [];
+    var title = hhNorm(model.jobTitle);
+    if (title) specs.push(title);
+    for (var i = 0; i < model.specializations.length && specs.length < 6; i++) {
+        var sp = hhNorm(model.specializations[i]);
+        if (sp && specs.indexOf(sp) === -1) specs.push(sp);
+    }
+    var mapped = hhDetectSpecializations(model.jobTitle, model.sphere);
+    for (var j = 0; j < mapped.length && specs.length < 6; j++) {
+        if (specs.indexOf(mapped[j]) === -1) specs.push(mapped[j]);
+    }
+    model.specializations = specs;
+    for (var li = 0; li < model.languages.length; li++) {
+        model.languages[li].level = hhNormalizeLanguageLevel(model.languages[li].level);
+    }
+    hhEnsureSkillLevels(model);
+    return model;
+}
+
 function parseToHHModel(text) {
     var raw = String(text || '');
     var lines = raw.replace(/\r/g, '').split('\n')
@@ -984,10 +1350,12 @@ function parseToHHModel(text) {
         .filter(function(l) { return l.length > 0; });
 
     var model = {
-        name: '', personal: '', phone: '', email: '', city: '', citizenship: '', relocate: '',
-        coverLetter: '', jobTitle: '', sphere: '', employment: 'Полная занятость, полный день',
-        salary: '', totalExperience: '', jobs: [], education: [], courses: [],
-        languages: [], skills: [], references: [], extra: []
+        name: '', personal: '', phone: '', email: '', city: '', citizenship: '', workPermit: '',
+        relocate: '', relocateNote: '', relocateInfo: null, jobStatus: '', coverLetter: '',
+        jobTitle: '', sphere: '', employment: 'Полная занятость, полный день', workFormat: [],
+        specializations: [], salary: '', totalExperience: '', jobs: [], education: [], courses: [],
+        languages: [], skills: [], skillLevels: {}, references: [], extra: [], commuteTime: '',
+        _rawText: raw
     };
 
     model.email = (raw.match(/[\w.+-]+@[\w.-]+\.[a-z]{2,}/i) || [])[0] || '';
@@ -997,6 +1365,7 @@ function parseToHHModel(text) {
     var curJob = null;
     var expPreamble = [];
     var curRef = null;
+    var skillsTier = null;
 
     var SECTION_HEADERS = {
         cover: { prefix: ['сопроводительное письмо'], exact: [] },
@@ -1008,6 +1377,7 @@ function parseToHHModel(text) {
         languages: { prefix: ['знание языков', 'иностранные языки', 'языки общения', 'languages'], exact: ['языки'] },
         refs: { prefix: [], exact: ['рекомендации', 'рекомендатели', 'references'] },
         skip: { prefix: ['комментарии к резюме', 'история общения'], exact: ['комментарии'] },
+        docs: { prefix: [], exact: ['гражданство, время в пути до работы'] },
         extra: { prefix: ['дополнительная информация', 'личные качества'], exact: ['дополнительно', 'о себе', 'интересы', 'хобби'] }
     };
 
@@ -1045,8 +1415,19 @@ function parseToHHModel(text) {
             if (/родил|дата рожд/.test(hlower)) { model.personal = model.personal ? model.personal + ', ' + line : line; return; }
             if (/прожива|место жительств|адрес|город:/.test(hlower)) { model.city = model.city || line.replace(/^[^:：]*[:：]\s*/, ''); return; }
             if (hhIsCity(line)) { model.city = model.city || line; return; }
-            if (/гражданство/.test(hlower)) { model.citizenship = line.replace(/^[^:：]*[:：]\s*/, ''); return; }
-            if (/переезд|командиров/.test(hlower)) { model.relocate = line; return; }
+            if (/активно\s+ищет|предложили\s+работу|рассматривае\w*\s+предложени/.test(hlower)) { model.jobStatus = model.jobStatus || hhDetectJobStatus(line); return; }
+            if (/гражданство|разрешение\s+на\s+работу/.test(hlower)) {
+                var cm = line.match(/гражданство\s*[:：]\s*([^,;]+)/i);
+                if (cm) model.citizenship = model.citizenship || cm[1].trim();
+                var wm = line.match(/разрешение\s+на\s+работу\s*[:：]?\s*([^,;]+)/i);
+                if (wm) model.workPermit = model.workPermit || wm[1].trim();
+                return;
+            }
+            if (/переезд|командиров/.test(hlower)) {
+                if (!model.relocate) model.relocate = line;
+                else if (model.relocate !== line) model.relocate += '\n' + line;
+                return;
+            }
             if (/руб|₽|\$|€|зарплата|оклад/.test(hlower)) { model.salary = model.salary || hhExtractSalary(line); return; }
             return;
         }
@@ -1059,9 +1440,21 @@ function parseToHHModel(text) {
         if (section === 'desired') {
             var dlower = line.toLowerCase();
             if (/руб|₽|\$|€|зарплата/.test(dlower)) { model.salary = model.salary || hhExtractSalary(line); return; }
-            if (/занятость|график|полный|неполный|смен/.test(dlower)) { model.employment = line; return; }
+            if (/время\s+в\s+пути/.test(dlower)) { model.commuteTime = model.commuteTime || hhParseCommute(line); return; }
+            if (/формат\s+работы|удалён|удален|гибрид|на\s+месте\s+работодатель/.test(dlower)) {
+                hhDetectWorkFormat(line).forEach(function(f) {
+                    if (model.workFormat.indexOf(f) === -1) model.workFormat.push(f);
+                });
+                return;
+            }
+            if (/тип\s+занятости|занятость|график|полный|неполный|смен/.test(dlower)) { model.employment = line; return; }
             if (!model.jobTitle) { model.jobTitle = line; return; }
             if (!model.sphere) { model.sphere = line; return; }
+            // hh.ru lists specializations under the desired position; collect them.
+            if (line.length > 2 && line.length < 60 && !/\d|[.!?]/.test(line) && !/:$|—/.test(line) &&
+                model.specializations.indexOf(line) === -1) {
+                model.specializations.push(line);
+            }
             return;
         }
 
@@ -1092,7 +1485,7 @@ function parseToHHModel(text) {
             if (!curJob.sphere && !curJob.position && curJob.description.length === 0 && /,/.test(line) && line.length < 70 && !/[.!?]/.test(line)) { curJob.sphere = line; return; }
             if (!curJob.position) { curJob.position = line; return; }
             var lastDesc = curJob.description.length ? curJob.description[curJob.description.length - 1] : null;
-            if (lastDesc && !/[.!?…»"]$/.test(lastDesc) && /^[а-яёa-z(«"•]/i.test(line)) {
+            if (lastDesc && !/[.!?…»"]$/.test(lastDesc) && !hhIsAchievementLine(line) && /^[а-яёa-z(«"•]/i.test(line)) {
                 curJob.description[curJob.description.length - 1] = lastDesc + ' ' + line;
             } else {
                 curJob.description.push(line);
@@ -1133,13 +1526,23 @@ function parseToHHModel(text) {
         }
 
         if (section === 'skills') {
+            if (/^уровни\s+владения\s+навыками/.test(line.toLowerCase())) return;
+            var tierM = line.match(/^(продвинутый\s+уровень|средний\s+уровень|базовый\s+уровень)\s*[:：]\s*(.*)$/i);
+            if (tierM) {
+                skillsTier = tierM[1].toLowerCase() === 'продвинутый уровень' ? 'Продвинутый уровень'
+                    : tierM[1].toLowerCase() === 'базовый уровень' ? 'Базовый уровень' : 'Средний уровень';
+                line = tierM[2];
+            }
             if (line.length > 80) {
                 if (line.length < 250 && model.skills.indexOf(line) === -1) model.skills.push(line);
                 return;
             }
             line.split(/[,••]+/).forEach(function(part) {
                 var t = part.replace(/^[-\s•]+|[\s•]+$/g, '').trim();
-                if (t && t.length > 1 && t.length < 80 && model.skills.indexOf(t) === -1) model.skills.push(t);
+                if (!t || t.length < 2 || t.length > 80) return;
+                if (/^\[укажите/i.test(t)) return;
+                if (model.skills.indexOf(t) === -1) model.skills.push(t);
+                if (skillsTier) model.skillLevels[t.toLowerCase()] = skillsTier;
             });
             return;
         }
@@ -1161,12 +1564,31 @@ function parseToHHModel(text) {
         }
 
         if (section === 'extra') { model.extra.push(line); return; }
+        if (section === 'docs') {
+            var dlower2 = line.toLowerCase();
+            if (/гражданство/.test(dlower2)) { model.citizenship = model.citizenship || line.replace(/^[^:：]*[:：]\s*/, ''); return; }
+            if (/разрешение\s+на\s+работу/.test(dlower2)) { model.workPermit = model.workPermit || line.replace(/^[^:：]*[:：]\s*/, ''); return; }
+            if (/время\s+в\s+пути/.test(dlower2)) { model.commuteTime = model.commuteTime || hhParseCommute(line); return; }
+            return;
+        }
         // section === 'skip' — employer-side notes, ignore
     });
 
     if (expPreamble.length && !model.jobs.length) {
         model.jobs.push({ start: null, end: null, duration: '', company: '', city: '', sphere: '', position: expPreamble[0], description: expPreamble.slice(1) });
     }
+
+    hhEnrichModel(model);
+
+    // "Конкретные достижения" — a top hh.ru resume shows a measurable result
+    // for every job, so the model itself guarantees one per job.
+    model.jobs.forEach(function(job) {
+        var ach = hhEnsureJobAchievements(job);
+        if (ach) {
+            job.description = (job.description || []).concat([ach]);
+            job.autoAchievement = true;
+        }
+    });
 
     return model;
 }
@@ -1182,38 +1604,50 @@ function hhTotalMonths(model) {
     return total;
 }
 
-function renderHHResume(model) {
-    var out = [];
-    out.push(model.name || '[Укажите ФИО]');
-    if (model.personal) out.push(model.personal);
-    if (model.phone) out.push(model.phone);
-    if (model.email) out.push(model.email);
-    if (model.city) out.push('Проживает: ' + model.city);
-    if (model.citizenship) out.push('Гражданство: ' + model.citizenship);
-    if (model.relocate) out.push(model.relocate);
-
-    if (model.coverLetter) {
-        out.push('');
-        out.push('Сопроводительное письмо');
-        out.push(model.coverLetter);
+// Builds the ordered list of [style, text, blank-line-before] rows for the
+// full hh.ru top-resume layout. Both renderers use it so the plain and the RTF
+// output can never drift apart.
+function hhBuildRows(model) {
+    hhEnrichModel(model);
+    var m = model || {};
+    var rows = [];
+    function add(style, text, br) {
+        var s = text === null || text === undefined ? '' : String(text);
+        var trimmed = s.replace(/\s+$/g, '');
+        if (!trimmed.length) return;
+        rows.push([style, trimmed, br ? 1 : 0]);
     }
 
-    if (model.jobTitle || model.sphere || model.salary) {
-        out.push('');
-        out.push('Желаемая должность и зарплата');
-        if (model.jobTitle) out.push(model.jobTitle);
-        if (model.sphere) out.push(model.sphere);
-        out.push(model.employment || 'Полная занятость, полный день');
-        if (model.salary) out.push(hhSalaryLine(model.salary));
+    add('name', m.name || '[Укажите ФИО]');
+    add('body', m.personal);
+    add('body', m.jobStatus || 'Активно ищет работу');
+    add('body', m.phone);
+    add('body', m.email);
+    add('body', hhFormatRelocate(m));
+    add('body', m.relocateNote);
+
+    if (m.coverLetter) {
+        add('head', 'Сопроводительное письмо', true);
+        add('body', m.coverLetter);
     }
 
-    if (model.jobs.length) {
-        out.push('');
-        out.push('Опыт работы');
-        if (model.totalExperience) out.push(model.totalExperience);
-        model.jobs.forEach(function(job) {
-            out.push('');
-            out.push(job.start ? hhFormatPeriod(job) : '[Укажите период работы]');
+    if (m.jobTitle || m.sphere || m.salary || m.specializations.length) {
+        add('head', 'Желаемая должность и зарплата', true);
+        add('body', m.jobTitle);
+        add('body', hhSalaryHandsLine(m.salary));
+        if (m.specializations.length) {
+            add('label', 'Специализации:');
+            for (var i = 0; i < m.specializations.length; i++) add('body', m.specializations[i]);
+        }
+        add('body', 'Тип занятости: ' + (m.employment || 'полная занятость'));
+        add('body', 'Формат работы: ' + (m.workFormat || []).join(', '));
+    }
+
+    if (m.jobs.length) {
+        add('head', 'Опыт работы', true);
+        if (m.totalExperience) add('body', m.totalExperience);
+        m.jobs.forEach(function(job) {
+            var period = job.start ? hhFormatPeriod(job) : '[Укажите период работы]';
             var dur = job.duration;
             if (!dur && job.start && job.end) {
                 var months = 0;
@@ -1221,64 +1655,81 @@ function renderHHResume(model) {
                 else months = (job.end.year - job.start.year) * 12 + (job.end.month - job.start.month);
                 dur = hhFormatDuration(months);
             }
-            if (dur) out.push(dur);
-            if (job.company) out.push(job.company);
-            if (job.city) out.push(job.city);
-            if (job.sphere) out.push(job.sphere);
-            if (job.position) out.push(job.position);
-            (job.description || []).forEach(function(d) { out.push(d); });
+            add('period', period + (dur ? '\n' + dur : ''), true);
+            add('company', job.company);
+            add('city', job.city);
+            add('body', job.sphere);
+            add('position', job.position);
+            (job.description || []).forEach(function(d) { add('body', d); });
         });
     }
 
-    if (model.education.length) {
-        out.push('');
-        out.push('Высшее образование');
-        model.education.forEach(function(ed) {
-            if (ed.year) out.push(ed.year);
-            if (ed.place) out.push(ed.place);
-            if (ed.faculty) out.push(ed.faculty);
-        });
-    }
-
-    if (model.courses.length) {
-        out.push('');
-        out.push('Повышение квалификации, курсы');
-        model.courses.forEach(function(c) {
-            if (c.year) out.push(c.year);
-            if (c.title) out.push(c.title);
-            if (c.org) out.push(c.org);
-        });
-    }
-
-    if (model.languages.length || model.skills.length) {
-        out.push('');
-        out.push('Ключевые навыки');
-        out.push('Знание языков');
-        if (model.languages.length) {
-            model.languages.forEach(function(l) { out.push(l.name + (l.level ? ' ' + l.level : '')); });
-        } else {
-            out.push('Русский родной');
-        }
-        if (model.skills.length) {
-            out.push('');
-            out.push('Навыки');
-            model.skills.slice(0, 30).forEach(function(s) { out.push(s); });
+    if (m.skills.length) {
+        add('head', 'Навыки', true);
+        add('label', 'Уровни владения навыками');
+        for (var t = 0; t < HH_SKILL_TIERS.length; t++) {
+            var tier = HH_SKILL_TIERS[t];
+            var names = [];
+            for (var si = 0; si < m.skills.length; si++) {
+                var key = String(m.skills[si]).toLowerCase();
+                if ((m.skillLevels || {})[key] === tier) names.push(m.skills[si]);
+            }
+            add('body', tier + ': ' + (names.length ? names.join(', ') : HH_SKILL_TIER_EMPTY[tier]));
         }
     }
 
-    if (model.extra.length || model.references.length) {
-        out.push('');
-        out.push('Дополнительная информация');
-        model.extra.forEach(function(e) { out.push(e); });
-        if (model.references.length) {
-            out.push('Рекомендации');
-            model.references.forEach(function(r) {
-                if (r.org) out.push(r.org);
-                if (r.name) out.push(r.name + (r.position ? ' (' + r.position + ')' : '') + (r.phone ? '. ' + r.phone : ''));
+    if (m.education.length) {
+        add('head', 'Высшее образование', true);
+        m.education.forEach(function(ed) {
+            if (ed.year) add('body', ed.year);
+            if (ed.place) add('body', ed.place);
+            if (ed.faculty) add('body', ed.faculty);
+        });
+    }
+
+    if (m.courses.length) {
+        add('head', 'Повышение квалификации, курсы', true);
+        m.courses.forEach(function(c) {
+            if (c.year) add('body', c.year);
+            if (c.title) add('body', c.title);
+            if (c.org) add('body', c.org);
+        });
+    }
+
+    add('head', 'Знание языков', true);
+    if (m.languages.length) {
+        m.languages.forEach(function(l) { add('body', hhFormatLanguage(l)); });
+    } else {
+        add('body', 'Русский — Родной');
+    }
+
+    add('head', 'Гражданство, время в пути до работы', true);
+    add('body', 'Гражданство: ' + (m.citizenship || '[Укажите гражданство]'));
+    if (m.workPermit) add('body', 'Разрешение на работу: ' + m.workPermit);
+    add('body', 'Желательное время в пути до работы: ' + (m.commuteTime || 'Не имеет значения'));
+
+    if (m.extra.length || m.references.length) {
+        add('head', 'Дополнительная информация', true);
+        m.extra.forEach(function(e) { add('body', e); });
+        if (m.references.length) {
+            add('label', 'Рекомендации');
+            m.references.forEach(function(r) {
+                if (r.org) add('body', r.org);
+                if (r.name) add('body', r.name + (r.position ? ' (' + r.position + ')' : '') + (r.phone ? '. ' + r.phone : ''));
             });
         }
     }
 
+    return rows;
+}
+
+function renderHHResume(model) {
+    var rows = hhBuildRows(model);
+    var out = [];
+    for (var i = 0; i < rows.length; i++) {
+        if (rows[i][2]) out.push('');
+        out.push(rows[i][1]);
+    }
     return out.join('\n');
 }
 
@@ -1332,98 +1783,7 @@ function rtfEscapeText(s) {
 }
 
 function renderHHResumeRTF(model) {
-    var m = model || {};
-    var jobs = m.jobs || [], education = m.education || [], courses = m.courses || [];
-    var languages = m.languages || [], skills = m.skills || [];
-    var references = m.references || [], extra = m.extra || [];
-
-    // Section order mirrors renderHHResume() exactly.
-    var rows = [];
-    rows.push(['name', m.name || '[Укажите ФИО]']);
-    if (m.personal) rows.push(['body', m.personal]);
-    if (m.phone) rows.push(['body', m.phone]);
-    if (m.email) rows.push(['body', m.email]);
-    if (m.city) rows.push(['body', 'Проживает: ' + m.city]);
-    if (m.citizenship) rows.push(['body', 'Гражданство: ' + m.citizenship]);
-    if (m.relocate) rows.push(['body', m.relocate]);
-
-    if (m.coverLetter) {
-        rows.push(['head', 'Сопроводительное письмо']);
-        rows.push(['body', m.coverLetter]);
-    }
-
-    if (m.jobTitle || m.sphere || m.salary) {
-        rows.push(['head', 'Желаемая должность и зарплата']);
-        if (m.jobTitle) rows.push(['body', m.jobTitle]);
-        if (m.sphere) rows.push(['body', m.sphere]);
-        rows.push(['body', m.employment || 'Полная занятость, полный день']);
-        if (m.salary) rows.push(['body', hhSalaryLine(m.salary)]);
-    }
-
-    if (jobs.length) {
-        rows.push(['head', 'Опыт работы']);
-        if (m.totalExperience) rows.push(['body', m.totalExperience]);
-        jobs.forEach(function(job) {
-            var period = job.start ? hhFormatPeriod(job) : '[Укажите период работы]';
-            var dur = job.duration;
-            if (!dur && job.start && job.end) {
-                var months = 0;
-                if (job.end.present) { var n = new Date(); months = (n.getFullYear() - job.start.year) * 12 + (n.getMonth() - job.start.month); }
-                else months = (job.end.year - job.start.year) * 12 + (job.end.month - job.start.month);
-                dur = hhFormatDuration(months);
-            }
-            rows.push(['period', period + (dur ? '\n' + dur : '')]);
-            if (job.company) rows.push(['company', job.company]);
-            if (job.city) rows.push(['city', job.city]);
-            if (job.sphere) rows.push(['body', job.sphere]);
-            if (job.position) rows.push(['position', job.position]);
-            (job.description || []).forEach(function(d) { rows.push(['body', d]); });
-        });
-    }
-
-    if (education.length) {
-        rows.push(['head', 'Высшее образование']);
-        education.forEach(function(ed) {
-            if (ed.year) rows.push(['body', ed.year]);
-            if (ed.place) rows.push(['body', ed.place]);
-            if (ed.faculty) rows.push(['body', ed.faculty]);
-        });
-    }
-
-    if (courses.length) {
-        rows.push(['head', 'Повышение квалификации, курсы']);
-        courses.forEach(function(c) {
-            if (c.year) rows.push(['body', c.year]);
-            if (c.title) rows.push(['body', c.title]);
-            if (c.org) rows.push(['body', c.org]);
-        });
-    }
-
-    if (languages.length || skills.length) {
-        rows.push(['head', 'Ключевые навыки']);
-        rows.push(['label', 'Знание языков']);
-        if (languages.length) {
-            languages.forEach(function(l) { rows.push(['body', l.name + (l.level ? ' ' + l.level : '')]); });
-        } else {
-            rows.push(['body', 'Русский родной']);
-        }
-        if (skills.length) {
-            rows.push(['label', 'Навыки']);
-            skills.slice(0, 30).forEach(function(s) { rows.push(['body', s]); });
-        }
-    }
-
-    if (extra.length || references.length) {
-        rows.push(['head', 'Дополнительная информация']);
-        extra.forEach(function(e) { rows.push(['body', e]); });
-        if (references.length) {
-            rows.push(['label', 'Рекомендации']);
-            references.forEach(function(r) {
-                if (r.org) rows.push(['body', r.org]);
-                if (r.name) rows.push(['body', r.name + (r.position ? ' (' + r.position + ')' : '') + (r.phone ? '. ' + r.phone : '')]);
-            });
-        }
-    }
+    var rows = hhBuildRows(model);
 
     function emit(row) {
         var style = row[0];
@@ -1443,7 +1803,7 @@ function renderHHResumeRTF(model) {
     doc.push(HH_RTF_FONTTABLE);
     doc.push(HH_RTF_COLORTBL);
     doc.push('\\paperw11906\\paperh16838\\margl1134\\margr1134\\margt1134\\margb1134\\widowctrl\\ftnbj\\aenddoc');
-    var footName = rtfEscapeText(String(m.name || '').trim());
+    var footName = rtfEscapeText(String((model && model.name) || '').trim());
     doc.push('{\\footer\\pard\\qr\\sa200\\f1\\fs16\\cf21 ' + (footName ? footName + ' \\bullet  ' : '') + '\\chpgn\\par}');
     doc.push('\\pard\\plain\\f1\\fs18\\lang1049\\langfe1049\\sa200\\sl276\\slmult1');
     for (var r = 0; r < rows.length; r++) doc.push(emit(rows[r]));
@@ -1458,7 +1818,16 @@ function processHHResume(resumeText, jobTitle, mode) {
     if (jobTitle && (!model.jobTitle || model.jobTitle.toLowerCase() !== jobTitle.toLowerCase())) {
         model.jobTitle = jobTitle;
         changes.push({ type: 'add', text: 'Указана желаемая должность: ' + jobTitle });
+        hhEnrichModel(model);
     }
+
+    // Log the per-job measurable achievements the model guaranteed.
+    model.jobs.forEach(function(job) {
+        if (!job.autoAchievement) return;
+        delete job.autoAchievement;
+        var last = (job.description || []).slice(-1)[0] || '';
+        changes.push({ type: 'add', text: 'Добавлено конкретное достижение' + (job.company ? ' (' + job.company + ')' : '') + ': ' + last });
+    });
 
     if (!model.totalExperience) {
         var total = hhTotalMonths(model);
@@ -1511,7 +1880,11 @@ function processHHResume(resumeText, jobTitle, mode) {
     });
 
     if (!model.languages.length) changes.push({ type: 'add', text: 'Добавлен раздел «Знание языков» (русский — родной)' });
-    changes.push({ type: 'modify', text: 'Резюме приведено к формату hh.ru: контакты, желаемая должность, опыт работы с периодами, образование, ключевые навыки, рекомендации' });
+    changes.push({ type: 'add', text: 'Указан статус поиска: ' + model.jobStatus });
+    changes.push({ type: 'modify', text: 'Зарплата приведена к виду hh.ru «на руки»: ' + (hhSalaryHandsLine(model.salary) || '[Укажите зарплату]') });
+    changes.push({ type: 'add', text: 'Добавлены специализации (' + model.specializations.length + '), тип занятости и формат работы' });
+    changes.push({ type: 'modify', text: 'Навыки распределены по уровням владения hh.ru: Продвинутый / Средний / Базовый уровень' });
+    changes.push({ type: 'modify', text: 'Резюме приведено к полному формату топ-резюме hh.ru: контакты, переезд и командировки, желаемая должность и зарплата «на руки», специализации, тип занятости, формат работы, опыт работы с периодами и достижениями, навыки с уровнями, образование, курсы, языки, гражданство и желательное время в пути, рекомендации' });
 
     return { resume: renderHHResume(model), changes: changes };
 }
@@ -1682,6 +2055,8 @@ function copyResult() {
 
 function downloadResult(format) {
     if (!lastResult) return;
+    if (format === 'pdf') { downloadResultPDF(); return; }
+    if (format === 'doc') { downloadResultDoc(); return; }
     var content = lastResult;
     var mime = format === 'md' ? 'text/markdown' : 'text/plain';
     if (format === 'rtf') {
@@ -1701,4 +2076,257 @@ function downloadResult(format) {
     a.click();
     URL.revokeObjectURL(url);
     showToast('\u0424\u0430\u0439\u043b \u0441\u043a\u0430\u0447\u0430\u043d!', 'success');
+}
+
+function escapeHtml(s) {
+    return String(s === null || s === undefined ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// DOC для Word: тот же шаблон hh.ru (как 12044770.rtf / renderHHResumeRTF),
+// но в виде Word-HTML — открывается в Word и LibreOffice без потери структуры.
+function buildDocHtml(model) {
+    var rows = hhBuildRows(model);
+    var html = [];
+    rows.forEach(function(row) {
+        var style = row[0], text = escapeHtml(row[1]).replace(/\n/g, '<br>');
+        if (!text) return;
+        if (style === 'name') html.push('<p style="font-size:18pt;font-weight:bold;margin:0 0 4pt 0;font-family:Arial">' + text + '</p>');
+        else if (style === 'head') html.push('<h2 style="font-size:12pt;color:#444;margin:16pt 0 6pt 0;border-bottom:1px solid #999;font-family:Arial">' + text + '</h2>');
+        else if (style === 'company') html.push('<p style="font-size:12pt;font-weight:bold;margin:8pt 0 0 0;font-family:Arial">' + text + '</p>');
+        else if (style === 'position') html.push('<p style="font-size:12pt;margin:0 0 4pt 0;font-family:Arial">' + text + '</p>');
+        else if (style === 'period' || style === 'label') html.push('<p style="font-size:9pt;color:#555;margin:4pt 0 0 0;font-family:Arial">' + text + '</p>');
+        else if (style === 'city') html.push('<p style="font-size:9pt;color:#444;margin:0 0 4pt 0;font-family:Arial">' + text + '</p>');
+        else html.push('<p style="font-size:10pt;margin:0 0 4pt 0;font-family:Arial">' + text + '</p>');
+    });
+    return '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><title>Resume</title></head><body>' + html.join('') + '</body></html>';
+}
+
+function downloadResultDoc() {
+    try {
+        var model = parseToHHModel(lastResult);
+        var html = buildDocHtml(model);
+        var blob = new Blob(['\ufeff' + html], { type: 'application/msword' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'resume_enhanced.doc';
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast('Файл скачан!', 'success');
+    } catch (e) {
+        showToast('Ошибка формирования DOC: ' + (e && e.message || e), 'error');
+    }
+}
+
+function downloadResultPDF() {
+    try {
+        var model = parseToHHModel(lastResult);
+        var html = buildDocHtml(model);
+        var w = window.open('', '_blank');
+        if (!w) { showToast('Разрешите всплывающие окна для PDF', 'error'); return; }
+        w.document.write(html);
+        w.document.close();
+        w.focus();
+        setTimeout(function() { w.print(); }, 500);
+        showToast('Выберите «Сохранить как PDF» в окне печати', 'info');
+    } catch (e) {
+        showToast('Ошибка формирования PDF: ' + (e && e.message || e), 'error');
+    }
+}
+
+// ===================== FORM -> FILE =====================
+// Пошаговая анкета: пользователь вписывает свои данные, файл собирается
+// по шаблону hh.ru (тот же hhBuildRows/renderHHResumeRTF, что повторяет
+// 12044770.rtf). Что не вписано — придумывает подключенная нейросеть
+// по профессии (callAI / Atria), без ключа — локальный демо-движок.
+function getFormVal(id) {
+    var el = document.getElementById(id);
+    return el ? el.value.trim() : '';
+}
+
+function collectFormData() {
+    return {
+        fullName: getFormVal('f_fullName'),
+        birth: getFormVal('f_birth'),
+        phone: getFormVal('f_phone'),
+        email: getFormVal('f_email'),
+        city: getFormVal('f_city'),
+        citizenship: getFormVal('f_citizenship'),
+        profession: getFormVal('f_profession') || getFormVal('jobTitle'),
+        salary: getFormVal('f_salary'),
+        employment: getFormVal('f_employment'),
+        experience: getFormVal('f_experience'),
+        skills: getFormVal('f_skills'),
+        education: getFormVal('f_education'),
+        courses: getFormVal('f_courses'),
+        languages: getFormVal('f_languages'),
+        extra: getFormVal('f_extra')
+    };
+}
+
+function buildDraftFromForm(d) {
+    var lines = [];
+    if (d.fullName) lines.push(d.fullName);
+    if (d.birth) lines.push(d.birth);
+    if (d.phone) lines.push(d.phone);
+    if (d.email) lines.push(d.email);
+    if (d.city) lines.push(d.city);
+    if (d.citizenship) lines.push('Гражданство: ' + d.citizenship);
+    lines.push('');
+    lines.push('Желаемая должность');
+    lines.push(d.profession);
+    if (d.salary) lines.push(d.salary);
+    if (d.employment) lines.push(d.employment);
+    if (d.experience) { lines.push(''); lines.push('Опыт работы'); lines.push(d.experience); }
+    if (d.skills) { lines.push(''); lines.push('Навыки'); lines.push(d.skills); }
+    if (d.education) { lines.push(''); lines.push('Образование'); lines.push(d.education); }
+    if (d.courses) { lines.push(''); lines.push('Курсы'); lines.push(d.courses); }
+    if (d.languages) { lines.push(''); lines.push('Языки'); lines.push(d.languages); }
+    if (d.extra) { lines.push(''); lines.push('Дополнительная информация'); lines.push(d.extra); }
+    return lines.join('\n');
+}
+
+function formMissingList(d) {
+    var missing = [];
+    if (!d.fullName) missing.push('ФИО');
+    if (!d.phone) missing.push('телефон');
+    if (!d.email) missing.push('email');
+    if (!d.city) missing.push('город');
+    if (!d.salary) missing.push('зарплату');
+    if (!d.experience) missing.push('опыт работы (должности, обязанности, достижения)');
+    if (!d.skills) missing.push('навыки');
+    if (!d.education) missing.push('образование');
+    if (!d.courses) missing.push('курсы');
+    if (!d.languages) missing.push('языки');
+    if (!d.extra) missing.push('доп. информацию');
+    return missing;
+}
+
+// ИИ-дозаполнение по профессии для анкеты: сохраняет ВСЕ введенные данные,
+// недостающее генерирует реалистично под профессию.
+async function callAIForForm(draft, profession, missing) {
+    var mode = getSelectedPromptMode();
+    var basePrompt = buildSystemPrompt(mode, profession, selectedPlatform);
+    var extra = '\n\nFORM MODE: The user filled a step-by-step form. Draft resume below contains ONLY user-provided facts. '
+        + 'You MUST keep every user-provided fact exactly (name, phone, email, city, salary, companies, dates). '
+        + 'Target profession: ' + profession + '. '
+        + 'Missing fields the user did NOT fill: ' + (missing.length ? missing.join(', ') : 'none') + '. '
+        + 'Invent realistic content ONLY for those missing fields, tailored to the profession «' + profession + '». '
+        + 'Never overwrite user data with invented data. Output in the SAME language as the draft (Russian).';
+    var userMessage = 'Resume draft from form (user facts, keep them):\n\n' + draft
+        + '\n\nTarget position: ' + profession + '\n\nPlatform: ' + selectedPlatform;
+    var url = '', model = '', extraHeaders = {};
+    if (apiProvider === 'atria') {
+        var targetUrl = 'https://api.atria-asi.ai/v1/chat/completions';
+        url = PROXY_URL ? PROXY_URL + encodeURIComponent(targetUrl) : targetUrl;
+        model = apiModel || 'Atria-Dawn-Preview';
+    } else if (apiProvider === 'openai') {
+        url = 'https://api.openai.com/v1/chat/completions';
+        model = apiModel || 'gpt-4o';
+    } else if (apiProvider === 'openrouter') {
+        url = 'https://openrouter.ai/api/v1/chat/completions';
+        model = apiModel || 'openai/gpt-4o';
+        extraHeaders['HTTP-Referer'] = window.location.href;
+    }
+    var headers = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey };
+    Object.keys(extraHeaders).forEach(function(k) { headers[k] = extraHeaders[k]; });
+    var response = await fetch(url, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify({
+            model: model,
+            messages: [{ role: 'system', content: basePrompt + extra }, { role: 'user', content: userMessage }],
+            temperature: 0.7,
+            max_tokens: 4000
+        })
+    });
+    if (!response.ok) throw new Error('API Error: ' + response.status);
+    var data = await response.json();
+    return parseAIResponse(data.choices[0].message.content);
+}
+
+function displayEnhanceResult(result) {
+    lastResult = result.resume;
+    lastChanges = result.changes;
+    setATSScore(result.score);
+    document.getElementById('tabResumeContent').textContent = result.resume;
+    var changesHtml = '';
+    (result.changes || []).forEach(function(c) {
+        var cls = c.type === 'add' ? 'change-add' : c.type === 'remove' ? 'change-remove' : 'change-modify';
+        var icon = c.type === 'add' ? 'plus-circle' : c.type === 'remove' ? 'minus-circle' : 'pencil';
+        var color = c.type === 'add' ? 'text-neon-emerald' : c.type === 'remove' ? 'text-red-400' : 'text-yellow-400';
+        changesHtml += '<div class="change-item ' + cls + '"><div class="flex items-start gap-2"><i data-lucide="' + icon + '" class="w-4 h-4 mt-0.5 flex-shrink-0 ' + color + '"></i><div><p class="text-sm text-gray-300">' + escapeHtml(c.text) + '</p></div></div></div>';
+    });
+    document.getElementById('tabChangesContent').innerHTML = changesHtml;
+    lucide.createIcons();
+    switchTab('resume');
+    document.getElementById('skeletonLoader').classList.add('hidden');
+    document.getElementById('tabResumeContent').classList.remove('hidden');
+    document.getElementById('actionButtons').classList.remove('hidden');
+    var col = document.getElementById('resultColumn');
+    if (col && col.scrollIntoView) col.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+async function generateFromForm() {
+    var d = collectFormData();
+    if (!d.profession) { showToast('Укажите профессию — по ней ИИ допишет недостающее', 'error'); return; }
+    if (!d.fullName && !d.phone && !d.email && !d.experience && !d.skills) {
+        showToast('Заполните хотя бы 1-2 поля кроме профессии', 'error'); return;
+    }
+    if (isProcessing) return;
+    if (currentUser && !isAdmin()) {
+        var balance = getUserBalance(currentUser.email);
+        if (balance < COST_PER_REQUEST) {
+            showToast('Недостаточно средств. Нужно ' + COST_PER_REQUEST + ' ₽, баланс: ' + balance + ' ₽', 'error');
+            openPaymentModal();
+            return;
+        }
+    } else if (!currentUser) {
+        showToast('Войдите или зарегистрируйтесь для доступа', 'error');
+        openAuthModal('login');
+        return;
+    }
+    isProcessing = true;
+    var btn = document.getElementById('formGenerateBtn');
+    var oldHtml = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.innerHTML = 'Генерация файла...'; }
+    document.getElementById('tabPlaceholder').classList.add('hidden');
+    document.getElementById('skeletonLoader').classList.remove('hidden');
+    document.getElementById('tabResumeContent').classList.add('hidden');
+    document.getElementById('tabChangesContent').classList.add('hidden');
+    document.getElementById('actionButtons').classList.add('hidden');
+    try {
+        var draft = buildDraftFromForm(d);
+        var missing = formMissingList(d);
+        var result;
+        if (apiKey) {
+            try {
+                result = await callAIForForm(draft, d.profession, missing);
+            } catch (apiErr) {
+                console.warn('API call failed, falling back to demo:', apiErr);
+                showToast('API недоступен (сервер CORS). Используется локальный анализ.', 'info');
+                result = await generateDemoResult(draft, d.profession);
+            }
+        } else {
+            result = await generateDemoResult(draft, d.profession);
+        }
+        if (currentUser && !isAdmin()) {
+            try { updateUserBalance(currentUser.email, -COST_PER_REQUEST); updateAuthUI(); } catch (balErr) { console.warn('Balance update failed:', balErr); }
+        }
+        // Помечаем, что сгенерировано из анкеты и что дописал ИИ
+        result.changes = (result.changes || []).concat(missing.map(function(m) {
+            return { type: 'add', text: 'ИИ сгенерировал по профессии «' + d.profession + '»: ' + m };
+        }));
+        displayEnhanceResult(result);
+        showToast('Файл готов! Скачайте RTF / DOC / PDF ниже', 'success');
+    } catch (err) {
+        console.error(err);
+        document.getElementById('skeletonLoader').classList.add('hidden');
+        document.getElementById('tabPlaceholder').classList.remove('hidden');
+        showToast('Ошибка: ' + err.message, 'error');
+    } finally {
+        isProcessing = false;
+        if (btn) { btn.disabled = false; btn.innerHTML = oldHtml; lucide.createIcons({ nodes: [btn] }); }
+    }
 }
