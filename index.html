@@ -136,23 +136,20 @@
         <div class="flex flex-col lg:flex-row gap-6 split-layout">
             <div class="w-full lg:w-1/2 flex flex-col gap-5 animate-slide-right">
                 <div class="glass-card rounded-2xl p-5 neon-border">
-                    <div class="flex items-center justify-between mb-3">
-                        <label class="flex items-center gap-2 font-display font-semibold text-sm text-gray-300">
-                            <i data-lucide="file-text" class="w-4 h-4 text-neon-purple"></i>
-                            Ваше резюме
-                        </label>
-                        <span id="charCount" class="text-xs text-gray-500">0 символов</span>
-                    </div>
-                    <textarea id="resumeInput" rows="14" placeholder="Вставьте текст вашего резюме сюда...&#10;&#10;Например:&#10;Иван Петров&#10;Frontend-разработчик&#10;3 года опыта...&#10;&#10;Опыт работы:&#10;- Работал над проектами&#10;- Делал верстку&#10;- Участвовал в код-ревью" class="glass-input w-full rounded-xl p-4 text-sm text-gray-200 placeholder-gray-600 resize-none focus:ring-1 focus:ring-neon-purple/30" oninput="updateCharCount()"></textarea>
-                    <div class="mt-2 flex items-center justify-between">
-                        <div class="flex items-center gap-3">
-                            <label class="text-xs text-gray-600 hover:text-neon-purple transition-colors flex items-center gap-1 cursor-pointer">
-                                <i data-lucide="upload" class="w-3 h-3"></i> Загрузить файл
-                                <input id="fileUpload" type="file" accept=".txt,.pdf,.doc,.docx,.rtf" class="hidden" onchange="handleFileUpload(event)">
-                            </label>
-                            <span class="text-xs text-gray-600">Мин. 50 символов</span>
-                        </div>
-                        <button onclick="document.getElementById('resumeInput').value=''; updateCharCount();" class="text-xs text-gray-600 hover:text-red-400 transition-colors flex items-center gap-1">
+                    <label class="flex items-center gap-2 font-display font-semibold text-sm text-gray-300 mb-3">
+                        <i data-lucide="file-text" class="w-4 h-4 text-neon-purple"></i>
+                        Ваше резюме
+                    </label>
+                    <textarea id="resumeInput" class="hidden" oninput="updateCharCount()"></textarea>
+                    <label for="fileUpload" class="glass-input rounded-xl p-6 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-neon-purple/40 transition-all text-center">
+                        <i data-lucide="upload" class="w-8 h-8 text-neon-purple"></i>
+                        <span class="text-sm text-gray-300 font-medium">Нажмите, чтобы загрузить файл</span>
+                        <span class="text-[11px] text-gray-600">.txt, .pdf, .doc, .docx, .rtf — минимум 50 символов текста</span>
+                        <span id="fileNameDisplay" class="hidden text-xs text-neon-emerald"></span>
+                    </label>
+                    <input id="fileUpload" type="file" accept=".txt,.pdf,.doc,.docx,.rtf" class="hidden" onchange="handleFileUpload(event)">
+                    <div class="mt-2 flex items-center justify-end">
+                        <button onclick="clearUploadedFile()" class="text-xs text-gray-600 hover:text-red-400 transition-colors flex items-center gap-1">
                             <i data-lucide="x" class="w-3 h-3"></i> Очистить
                         </button>
                     </div>
@@ -231,7 +228,7 @@
                             Анкета — файл под ваши данные
                         </label>
                     </div>
-                    <p class="text-[11px] text-gray-500 mb-4">Заполните что знаете. Обязательно — профессия. Недостающее (навыки, обязанности, образование и т.д.) сгенерирует подключенная нейросеть под вашу профессию, а файл соберется по шаблону hh.ru из папки.</p>
+                    <p class="text-[11px] text-gray-500 mb-4">Заполните что знаете. Обязательно — профессия. Недостающее (навыки, обязанности, образование и т.д.) будет подобрано автоматически под вашу профессию, а файл соберется по шаблону hh.ru.</p>
                     <div class="space-y-4">
                         <div>
                             <p class="text-xs font-medium text-neon-purple mb-2">Шаг 1 — Контакты</p>
@@ -254,8 +251,8 @@
                         </div>
                         <div>
                             <p class="text-xs font-medium text-neon-pink mb-2">Шаг 3 — Опыт и навыки</p>
-                            <textarea id="f_experience" rows="4" placeholder="Опыт работы (компания, должность, годы, что делали). Можно кратко — детали допишет ИИ" class="glass-input w-full rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600 resize-none"></textarea>
-                            <textarea id="f_skills" rows="2" placeholder="Навыки через запятую (если нет — ИИ подберет по профессии)" class="glass-input w-full rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600 resize-none mt-2"></textarea>
+                            <textarea id="f_experience" rows="4" placeholder="Опыт работы (компания, должность, годы, что делали). Можно кратко — детали будут добавлены автоматически" class="glass-input w-full rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600 resize-none"></textarea>
+                            <textarea id="f_skills" rows="2" placeholder="Навыки через запятую (если нет — подберутся автоматически по профессии)" class="glass-input w-full rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600 resize-none mt-2"></textarea>
                         </div>
                         <div>
                             <p class="text-xs font-medium text-neon-emerald mb-2">Шаг 4 — Образование и языки</p>
@@ -275,7 +272,7 @@
 
                 <button id="enhanceBtn" onclick="enhanceResume()" class="btn-gradient w-full rounded-xl py-4 font-display font-bold text-white text-base tracking-wide flex items-center justify-center gap-3">
                     <i data-lucide="wand-2" class="w-5 h-5"></i>
-                    <span id="enhanceBtnText">Улучшить резюме через ИИ</span>
+                    <span id="enhanceBtnText">Сформировать резюме</span>
                     <span id="enhanceBtnCost" class="text-xs opacity-70 font-normal"></span>
                 </button>
             </div>
@@ -335,7 +332,7 @@
                                 <i data-lucide="sparkles" class="w-8 h-8 text-gray-600"></i>
                             </div>
                             <p class="text-gray-500 text-sm font-medium">Результат появится здесь</p>
-                            <p class="text-gray-600 text-xs mt-1">Вставьте резюме и нажмите «Улучшить»</p>
+                            <p class="text-gray-600 text-xs mt-1">Загрузите файл и нажмите «Сформировать»</p>
                         </div>
                         <div id="tabResumeContent" class="hidden text-sm text-gray-300 leading-relaxed whitespace-pre-wrap"></div>
                         <div id="tabChangesContent" class="hidden"></div>
@@ -560,7 +557,7 @@
             <!-- API KEY SETTINGS -->
             <div class="space-y-4">
                 <div class="glass-input rounded-xl p-4">
-                    <label class="block text-xs font-medium text-gray-400 mb-2">API Key (для ИИ)</label>
+                    <label class="block text-xs font-medium text-gray-400 mb-2">API Key</label>
                     <div class="flex gap-2">
                         <input id="adminApiKey" type="password" placeholder="atr_..." class="glass-input flex-1 rounded-lg p-2.5 text-sm text-gray-200 placeholder-gray-600">
                         <button onclick="toggleAdminKeyVisibility()" class="glass-input px-3 rounded-lg text-gray-400 hover:text-white transition-colors">

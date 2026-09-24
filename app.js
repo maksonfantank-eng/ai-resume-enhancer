@@ -1,6 +1,6 @@
 // ===================== STATE =====================
 var APP_VERSION = 'v3-hh';
-console.log('[AI Resume Enhancer] app.js ' + APP_VERSION + ' loaded');
+console.log('[Naimis-bot] app.js ' + APP_VERSION + ' loaded');
 var apiKey = localStorage.getItem('resume_ai_key') || '';
 var apiProvider = localStorage.getItem('resume_ai_provider') || 'atria';
 var apiModel = localStorage.getItem('resume_ai_model') || 'Atria-Dawn-Preview';
@@ -50,9 +50,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // ===================== UTILITY =====================
 function updateCharCount() {
-    var len = document.getElementById('resumeInput').value.length;
-    document.getElementById('charCount').textContent = len + ' \u0441\u0438\u043c\u0432\u043e\u043b\u043e\u0432';
-    document.getElementById('charCount').className = len < 50 ? 'text-xs text-yellow-500' : 'text-xs text-gray-500';
+    var input = document.getElementById('resumeInput');
+    var counter = document.getElementById('charCount');
+    if (!input || !counter) return;
+    var len = input.value.length;
+    counter.textContent = len + ' \u0441\u0438\u043c\u0432\u043e\u043b\u043e\u0432';
+    counter.className = len < 50 ? 'text-xs text-yellow-500' : 'text-xs text-gray-500';
+}
+
+function clearUploadedFile() {
+    var input = document.getElementById('resumeInput');
+    if (input) input.value = '';
+    var fu = document.getElementById('fileUpload');
+    if (fu) fu.value = '';
+    var disp = document.getElementById('fileNameDisplay');
+    if (disp) { disp.textContent = ''; disp.classList.add('hidden'); }
+    updateCharCount();
 }
 
 function getSelectedPromptMode() {
@@ -178,6 +191,8 @@ function handleFileUpload(event) {
         }
         document.getElementById('resumeInput').value = text;
         updateCharCount();
+        var disp = document.getElementById('fileNameDisplay');
+        if (disp) { disp.textContent = '\u0417\u0430\u0433\u0440\u0443\u0436\u0435\u043d: ' + file.name; disp.classList.remove('hidden'); }
         showToast('\u0424\u0430\u0439\u043b \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d: ' + file.name, 'success');
     };
     reader.onerror = function() {
@@ -1889,7 +1904,7 @@ function processHHResume(resumeText, jobTitle, mode) {
     return { resume: renderHHResume(model), changes: changes };
 }
 
-// ===================== AI REQUEST =====================
+// ===================== API REQUEST =====================
 async function callAI(resume, jobTitle) {
     var mode = getSelectedPromptMode();
     var systemPrompt = buildSystemPrompt(mode, jobTitle, selectedPlatform);
@@ -1953,7 +1968,7 @@ function parseAIResponse(text) {
 async function enhanceResume() {
     var resume = document.getElementById('resumeInput').value.trim();
     var jobTitle = document.getElementById('jobTitle').value.trim();
-    if (!resume) { showToast('\u0412\u0441\u0442\u0430\u0432\u044c\u0442\u0435 \u0442\u0435\u043a\u0441\u0442 \u0440\u0435\u0437\u044e\u043c\u0435', 'error'); return; }
+    if (!resume) { showToast('\u0417\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u0435 \u0444\u0430\u0439\u043b \u0440\u0435\u0437\u044e\u043c\u0435', 'error'); return; }
     if (resume.length < 50) { showToast('\u0420\u0435\u0437\u044e\u043c\u0435 \u0441\u043b\u0438\u0448\u043a\u043e\u043c \u043a\u043e\u0440\u043e\u0442\u043a\u043e\u0435 (\u043c\u0438\u043d. 50 \u0441\u0438\u043c\u0432\u043e\u043b\u043e\u0432)', 'error'); return; }
     if (isProcessing) return;
 
@@ -1988,7 +2003,6 @@ async function enhanceResume() {
                 result = await callAI(resume, jobTitle);
             } catch (apiErr) {
                 console.warn('API call failed, falling back to demo:', apiErr);
-                showToast('API \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u0435\u043d (\u0441\u0435\u0440\u0432\u0435\u0440 CORS). \u0418\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0435\u0442\u0441\u044f \u043b\u043e\u043a\u0430\u043b\u044c\u043d\u044b\u0439 \u0430\u043d\u0430\u043b\u0438\u0437.', 'info');
                 result = await generateDemoResult(resume, jobTitle);
             }
         } else {
@@ -2022,7 +2036,7 @@ async function enhanceResume() {
         document.getElementById('skeletonLoader').classList.add('hidden');
         document.getElementById('tabResumeContent').classList.remove('hidden');
         document.getElementById('actionButtons').classList.remove('hidden');
-        showToast('\u0420\u0435\u0437\u044e\u043c\u0435 \u0443\u0441\u043f\u0435\u0448\u043d\u043e \u0443\u043b\u0443\u0447\u0448\u0435\u043d\u043e!', 'success');
+        showToast('\u0420\u0435\u0437\u044e\u043c\u0435 \u0433\u043e\u0442\u043e\u0432\u043e!', 'success');
     } catch (err) {
         console.error(err);
         document.getElementById('skeletonLoader').classList.add('hidden');
@@ -2031,7 +2045,7 @@ async function enhanceResume() {
     } finally {
         isProcessing = false;
         btn.disabled = false;
-        btn.innerHTML = '<i data-lucide="wand-2" class="w-5 h-5"></i> <span id="enhanceBtnText">\u0423\u043b\u0443\u0447\u0448\u0438\u0442\u044c \u0440\u0435\u0437\u044e\u043c\u0435 \u0447\u0435\u0440\u0435\u0437 \u0418\u0418</span> <span id="enhanceBtnCost" class="text-xs opacity-70 font-normal"></span>';
+        btn.innerHTML = '<i data-lucide="wand-2" class="w-5 h-5"></i> <span id="enhanceBtnText">\u0421\u0444\u043e\u0440\u043c\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0440\u0435\u0437\u044e\u043c\u0435</span> <span id="enhanceBtnCost" class="text-xs opacity-70 font-normal"></span>';
         lucide.createIcons({ nodes: [btn] });
         updateAuthUI();
     }
@@ -2138,8 +2152,8 @@ function downloadResultPDF() {
 // ===================== FORM -> FILE =====================
 // Пошаговая анкета: пользователь вписывает свои данные, файл собирается
 // по шаблону hh.ru (тот же hhBuildRows/renderHHResumeRTF, что повторяет
-// 12044770.rtf). Что не вписано — придумывает подключенная нейросеть
-// по профессии (callAI / Atria), без ключа — локальный демо-движок.
+// 12044770.rtf). Что не вписано — подбирается автоматически
+// по профессии (callAI / Atria), без ключа — локальный движок.
 function getFormVal(id) {
     var el = document.getElementById(id);
     return el ? el.value.trim() : '';
@@ -2203,7 +2217,7 @@ function formMissingList(d) {
     return missing;
 }
 
-// ИИ-дозаполнение по профессии для анкеты: сохраняет ВСЕ введенные данные,
+// Автозаполнение по профессии для анкеты: сохраняет ВСЕ введенные данные,
 // недостающее генерирует реалистично под профессию.
 async function callAIForForm(draft, profession, missing) {
     var mode = getSelectedPromptMode();
@@ -2270,7 +2284,7 @@ function displayEnhanceResult(result) {
 
 async function generateFromForm() {
     var d = collectFormData();
-    if (!d.profession) { showToast('Укажите профессию — по ней ИИ допишет недостающее', 'error'); return; }
+    if (!d.profession) { showToast('Укажите профессию — недостающее будет добавлено автоматически', 'error'); return; }
     if (!d.fullName && !d.phone && !d.email && !d.experience && !d.skills) {
         showToast('Заполните хотя бы 1-2 поля кроме профессии', 'error'); return;
     }
@@ -2305,7 +2319,6 @@ async function generateFromForm() {
                 result = await callAIForForm(draft, d.profession, missing);
             } catch (apiErr) {
                 console.warn('API call failed, falling back to demo:', apiErr);
-                showToast('API недоступен (сервер CORS). Используется локальный анализ.', 'info');
                 result = await generateDemoResult(draft, d.profession);
             }
         } else {
@@ -2314,9 +2327,9 @@ async function generateFromForm() {
         if (currentUser && !isAdmin()) {
             try { updateUserBalance(currentUser.email, -COST_PER_REQUEST); updateAuthUI(); } catch (balErr) { console.warn('Balance update failed:', balErr); }
         }
-        // Помечаем, что сгенерировано из анкеты и что дописал ИИ
+        // Помечаем, что сгенерировано из анкеты и что добавлено автоматически
         result.changes = (result.changes || []).concat(missing.map(function(m) {
-            return { type: 'add', text: 'ИИ сгенерировал по профессии «' + d.profession + '»: ' + m };
+            return { type: 'add', text: 'Автоматически добавлено по профессии «' + d.profession + '»: ' + m };
         }));
         displayEnhanceResult(result);
         showToast('Файл готов! Скачайте RTF / DOC / PDF ниже', 'success');
