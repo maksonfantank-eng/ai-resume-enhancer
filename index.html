@@ -107,25 +107,25 @@
                 <div class="flex items-center gap-3">
                     <div id="authLoggedOut">
                         <button onclick="openAuthModal('login')" class="glass-input px-3 py-1.5 rounded-lg text-sm text-gray-400 hover:text-gray-200 flex items-center gap-2 transition-all hover:border-neon-purple/40">
-                            <i data-lucide="log-in" class="w-4 h-4"></i>
+                            <i data-lucide="log-in" class="w-4 h-4 keep-icon"></i>
                             <span class="hidden sm:inline">Войти</span>
                         </button>
                     </div>
                     <div id="authLoggedIn" class="hidden flex items-center gap-2">
                         <div id="adminPanelBtn" class="hidden">
                             <button onclick="openAdminPanel()" class="glass-input px-2 py-1.5 rounded-lg text-sm text-yellow-400 hover:text-yellow-300 flex items-center gap-1 transition-all hover:border-yellow-500/40" title="Админ-панель">
-                                <i data-lucide="shield" class="w-4 h-4"></i>
+                                <i data-lucide="shield" class="w-4 h-4 keep-icon"></i>
                             </button>
                         </div>
                         <button onclick="openPaymentModal()" class="glass-input px-2 py-1.5 rounded-lg text-sm text-neon-emerald hover:text-neon-cyan flex items-center gap-1 transition-all hover:border-neon-emerald/40" title="Пополнить баланс">
-                            <i data-lucide="wallet" class="w-4 h-4"></i>
+                            <i data-lucide="wallet" class="w-4 h-4 keep-icon"></i>
                             <span id="balanceDisplay" class="text-xs font-medium">0 &#8381;</span>
                         </button>
                         <button onclick="openAuthModal('profile')" class="glass-input px-2 py-1.5 rounded-lg text-sm text-gray-400 hover:text-gray-200 flex items-center gap-2 transition-all hover:border-neon-purple/40">
-                            <i data-lucide="user" class="w-4 h-4"></i>
+                            <i data-lucide="user" class="w-4 h-4 keep-icon"></i>
                         </button>
                         <button onclick="logout()" class="glass-input px-2 py-1.5 rounded-lg text-sm text-gray-400 hover:text-red-400 flex items-center gap-2 transition-all hover:border-red-500/40">
-                            <i data-lucide="log-out" class="w-4 h-4"></i>
+                            <i data-lucide="log-out" class="w-4 h-4 keep-icon"></i>
                         </button>
                     </div>
                 </div>
@@ -136,10 +136,6 @@
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 relative z-10">
         <div class="glass-card rounded-3xl p-6 sm:p-10 neon-border mb-6 relative overflow-hidden animate-slide-up" id="scenarioSection" data-stage="0">
             <div class="text-center mb-8">
-                <div class="inline-flex items-center gap-2 glass-input rounded-full px-4 py-1.5 text-xs text-neon-cyan mb-4">
-                    <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
-                    <span>Резюме под ключ за 5 шагов · 100 &#8381;</span>
-                </div>
                 <h2 class="font-display font-extrabold text-2xl sm:text-4xl text-white tracking-tight">Как создаём резюме?</h2>
                 <p class="text-sm text-gray-500 mt-2">Выберите сценарий — дальше поведу по шагам</p>
             </div>
@@ -213,7 +209,7 @@
                     <input id="s2_focus" type="text" placeholder="Что улучшить? (например: опыт, навыки)" class="glass-input w-full rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600 mt-2">
                 </div>
 
-                <div class="glass-card rounded-2xl p-5 neon-border" id="modeCard" data-stage="2">
+                <div class="glass-card rounded-2xl p-5 neon-border hidden" id="modeCard" data-stage="2">
                     <label class="flex items-center gap-2 font-display font-semibold text-sm text-gray-300 mb-3">
                         <i data-lucide="sparkles" class="w-4 h-4 text-neon-pink"></i>
                         Режим обработки
@@ -250,7 +246,7 @@
                     </div>
                 </div>
 
-                <div class="glass-card rounded-2xl p-5 neon-border" id="jobCard" data-stage="4">
+                <div class="glass-card rounded-2xl p-5 neon-border hidden" id="jobCard" data-stage="4">
                     <label class="flex items-center gap-2 font-display font-semibold text-sm text-gray-300 mb-3">
                         <i data-lucide="briefcase" class="w-4 h-4 text-neon-cyan"></i>
                         Желаемая должность / Сфера
@@ -258,7 +254,7 @@
                     <input id="jobTitle" type="text" placeholder="Например: Senior Frontend Developer, Product Manager, Data Scientist" class="glass-input w-full rounded-xl p-3.5 text-sm text-gray-200 placeholder-gray-600 focus:ring-1 focus:ring-neon-cyan/30">
                 </div>
 
-                <div class="glass-card rounded-2xl p-5 neon-border" id="platformCard" data-stage="3">
+                <div class="glass-card rounded-2xl p-5 neon-border hidden" id="platformCard" data-stage="3">
                     <label class="flex items-center gap-2 font-display font-semibold text-sm text-gray-300 mb-3">
                         <i data-lucide="globe" class="w-4 h-4 text-neon-emerald"></i>
                         Платформа оптимизации
@@ -279,7 +275,7 @@
                     </div>
                 </div>
 
-                <div class="glass-card rounded-2xl p-5 neon-border" id="toneCard" data-stage="4">
+                <div class="glass-card rounded-2xl p-5 neon-border hidden" id="toneCard" data-stage="4">
                     <label class="flex items-center gap-2 font-display font-semibold text-sm text-gray-300 mb-3">
                         <i data-lucide="palette" class="w-4 h-4 text-neon-pink"></i>
                         Тон резюме
@@ -353,8 +349,7 @@
                     <button id="stageNextBtn" onclick="stageNext()" class="btn-gradient px-5 py-2.5 rounded-xl text-sm font-medium text-white">Далее</button>
                 </div>
 
-                <div data-stage="5" id="stage5box">
-                    <p class="text-[11px] text-gray-500 mb-3 text-center">Генерация стоит 100 &#8381; · результат и ATS появятся справа</p>
+                <div data-stage="5" id="stage5box" class="hidden">
                     <button id="enhanceBtn" onclick="enhanceResume()" class="btn-gradient w-full rounded-xl py-4 font-display font-bold text-white text-base tracking-wide flex items-center justify-center gap-3">
                         <i data-lucide="wand-2" class="w-5 h-5"></i>
                         <span id="enhanceBtnText">Сформировать резюме</span>
@@ -700,6 +695,6 @@
 
     <div id="toastContainer" class="fixed bottom-6 right-6 z-[200] flex flex-col gap-2"></div>
 
-    <script src="app.js?v=4"></script>
+    <script src="app.js?v=5"></script>
 </body>
 </html>
