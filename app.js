@@ -135,6 +135,8 @@ function showStage(n) {
     var next = document.getElementById('stageNextBtn');
     if (back) back.disabled = currentStage === 0;
     if (next) next.classList.toggle('hidden', currentStage === 5);
+    var nav = document.getElementById('stageNav');
+    if (nav) nav.classList.toggle('hidden', currentStage === 0);
     if (currentStage === 4 || currentStage === 5) syncScenarioToJob();
     lucide.createIcons();
 }

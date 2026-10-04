@@ -133,29 +133,51 @@
     </header>
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 relative z-10">
+        <div class="glass-card rounded-3xl p-6 sm:p-10 neon-border mb-6 relative overflow-hidden animate-slide-up" id="scenarioSection" data-stage="0">
+            <div class="text-center mb-8">
+                <div class="inline-flex items-center gap-2 glass-input rounded-full px-4 py-1.5 text-xs text-neon-cyan mb-4">
+                    <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+                    <span>Резюме под ключ за 5 шагов · 100 &#8381;</span>
+                </div>
+                <h2 class="font-display font-extrabold text-2xl sm:text-4xl text-white tracking-tight">Как создаём резюме?</h2>
+                <p class="text-sm text-gray-500 mt-2">Выберите сценарий — дальше поведу по шагам</p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="scenario-card platform-chip active glass-input rounded-2xl p-6 cursor-pointer text-left" data-scenario="1" onclick="selectScenario(1)">
+                    <div class="flex items-start justify-between mb-4">
+                        <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-neon-purple to-neon-cyan flex items-center justify-center">
+                            <i data-lucide="repeat" class="w-6 h-6 text-white"></i>
+                        </div>
+                        <span class="font-display font-extrabold text-3xl text-white/10">01</span>
+                    </div>
+                    <p class="font-display font-bold text-white text-base mb-1">Смена профессии</p>
+                    <p class="text-xs text-gray-500 leading-relaxed">Другая деятельность или город — адаптируем резюме и заберём переносимые навыки</p>
+                </div>
+                <div class="scenario-card platform-chip glass-input rounded-2xl p-6 cursor-pointer text-left" data-scenario="2" onclick="selectScenario(2)">
+                    <div class="flex items-start justify-between mb-4">
+                        <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-neon-pink to-neon-purple flex items-center justify-center">
+                            <i data-lucide="wrench" class="w-6 h-6 text-white"></i>
+                        </div>
+                        <span class="font-display font-extrabold text-3xl text-white/10">02</span>
+                    </div>
+                    <p class="font-display font-bold text-white text-base mb-1">Улучшить текущее</p>
+                    <p class="text-xs text-gray-500 leading-relaxed">Та же профессия — усилим резюме, подгоним под вакансию</p>
+                </div>
+                <div class="scenario-card platform-chip glass-input rounded-2xl p-6 cursor-pointer text-left" data-scenario="3" onclick="selectScenario(3)">
+                    <div class="flex items-start justify-between mb-4">
+                        <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-neon-emerald to-neon-cyan flex items-center justify-center">
+                            <i data-lucide="pen-line" class="w-6 h-6 text-white"></i>
+                        </div>
+                        <span class="font-display font-extrabold text-3xl text-white/10">03</span>
+                    </div>
+                    <p class="font-display font-bold text-white text-base mb-1">Создать с нуля</p>
+                    <p class="text-xs text-gray-500 leading-relaxed">Первое резюме — короткая анкета из 5 шагов</p>
+                </div>
+            </div>
+        </div>
+
         <div class="flex flex-col lg:flex-row gap-6 split-layout">
             <div class="w-full lg:w-1/2 flex flex-col gap-5 animate-slide-right">
-                <div class="glass-card rounded-2xl p-5 neon-border" id="scenarioSection" data-stage="0">
-                    <label class="flex items-center gap-2 font-display font-semibold text-sm text-gray-300 mb-3">
-                        <i data-lucide="route" class="w-4 h-4 text-neon-purple"></i>
-                        Выберите сценарий
-                    </label>
-                    <div class="space-y-2">
-                        <div class="scenario-card platform-chip active glass-input rounded-xl p-3 cursor-pointer" data-scenario="1" onclick="selectScenario(1)">
-                            <p class="text-sm text-gray-200 font-medium">1. Смена профессии</p>
-                            <p class="text-[11px] text-gray-500">Другая деятельность или город — адаптируем резюме</p>
-                        </div>
-                        <div class="scenario-card platform-chip glass-input rounded-xl p-3 cursor-pointer" data-scenario="2" onclick="selectScenario(2)">
-                            <p class="text-sm text-gray-200 font-medium">2. Улучшить текущее</p>
-                            <p class="text-[11px] text-gray-500">Та же профессия, вакансия, точечные правки</p>
-                        </div>
-                        <div class="scenario-card platform-chip glass-input rounded-xl p-3 cursor-pointer" data-scenario="3" onclick="selectScenario(3)">
-                            <p class="text-sm text-gray-200 font-medium">3. Создать с нуля</p>
-                            <p class="text-[11px] text-gray-500">Первое резюме — короткая анкета из 5 шагов</p>
-                        </div>
-                    </div>
-                </div>
-
                 <div class="glass-card rounded-2xl p-5 neon-border" id="fileCard" data-stage="1">
                     <label class="flex items-center gap-2 font-display font-semibold text-sm text-gray-300 mb-3">
                         <i data-lucide="file-text" class="w-4 h-4 text-neon-purple"></i>
