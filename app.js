@@ -8,6 +8,8 @@ var PROXY_URL = localStorage.getItem('resume_ai_proxy') || '';
 var WORKER_URL = (localStorage.getItem('resume_worker_url') || '').replace(/\/$/, '');
 var currentScenario = 1;
 var formStep = 1;
+var currentStage = 0;
+var STAGE_NAMES = ['Сценарий', 'Данные', 'Режим', 'Платформа', 'Тон и должность', 'Генерация'];
 var selectedPlatform = 'hh';
 var currentTone = 'business';
 var isProcessing = false;
@@ -50,7 +52,7 @@ document.addEventListener('DOMContentLoaded', function() {
     lucide.createIcons();
     updateAuthUI();
     checkPaymentReturn();
-    selectScenario(1);
+    showStage(0);
 });
 
 // ===================== UTILITY =====================
@@ -89,7 +91,6 @@ function selectScenario(n) {
     if (s1) s1.classList.toggle('hidden', n !== 1);
     if (s2) s2.classList.toggle('hidden', n !== 2);
     if (form) form.classList.toggle('hidden', n !== 3);
-    if (genBtn) genBtn.classList.toggle('hidden', n === 3);
     if (n === 1) {
         var t = document.querySelector('input[name="promptMode"][value="tailor"]');
         if (t) t.checked = true;
@@ -100,7 +101,68 @@ function selectScenario(n) {
         showFormStep(1);
     }
     syncScenarioToJob();
+    showStage(1);
     lucide.createIcons();
+}
+
+function showStage(n) {
+    currentStage = Math.min(5, Math.max(0, n));
+    document.querySelectorAll('[data-stage]').forEach(function(el) {
+        var st = parseInt(el.dataset.stage, 10);
+        var show = (st === currentStage);
+        if (st === 1) {
+            var id = el.id || '';
+            if (currentScenario === 3) {
+                show = (id === 'formSection');
+            } else if (currentScenario === 1) {
+                show = (id === 'fileCard' || id === 'scenario1Fields');
+            } else {
+                show = (id === 'fileCard' || id === 'scenario2Fields');
+            }
+        }
+        if (st === 5) {
+            show = true;
+            var eb = document.getElementById('enhanceBtn');
+            var fb = document.getElementById('formGenerateBtn');
+            if (eb) eb.classList.toggle('hidden', currentScenario === 3);
+            if (fb) fb.classList.toggle('hidden', currentScenario !== 3);
+        }
+        el.classList.toggle('hidden', !show);
+    });
+    var ind = document.getElementById('stageIndicator');
+    if (ind) ind.textContent = 'Шаг ' + (currentStage + 1) + ' из 6 · ' + STAGE_NAMES[currentStage];
+    var back = document.getElementById('stageBackBtn');
+    var next = document.getElementById('stageNextBtn');
+    if (back) back.disabled = currentStage === 0;
+    if (next) next.classList.toggle('hidden', currentStage === 5);
+    if (currentStage === 4 || currentStage === 5) syncScenarioToJob();
+    lucide.createIcons();
+}
+
+function stageNext() {
+    if (currentStage === 1) {
+        if (currentScenario === 3) {
+            if (!getFormVal('f_profession') && !getFormVal('jobTitle')) {
+                showToast('Укажите профессию на шаге 2 анкеты', 'error');
+                return;
+            }
+        } else {
+            var txt = (document.getElementById('resumeInput').value || '').trim();
+            if (txt.length < 50) {
+                showToast('Загрузите файл резюме (минимум 50 символов)', 'error');
+                return;
+            }
+            if (currentScenario === 1 && !getFormVal('s1_target')) {
+                showToast('Укажите целевую профессию', 'error');
+                return;
+            }
+        }
+    }
+    if (currentStage < 5) showStage(currentStage + 1);
+}
+
+function stageBack() {
+    if (currentStage > 0) showStage(currentStage - 1);
 }
 
 function syncScenarioToJob() {
@@ -147,6 +209,8 @@ function resetApp() {
     if (disp) { disp.textContent = ''; disp.classList.add('hidden'); }
     lastResult = null;
     lastChanges = null;
+    var rcol0 = document.getElementById('resultColumn');
+    if (rcol0) rcol0.style.display = 'none';
     var rc = document.getElementById('tabResumeContent');
     if (rc) { rc.textContent = ''; rc.classList.add('hidden'); }
     var cc = document.getElementById('tabChangesContent');
@@ -161,6 +225,7 @@ function resetApp() {
     updateCharCount();
     switchTab('resume');
     showFormStep(1);
+    showStage(0);
     window.scrollTo({ top: 0, behavior: 'smooth' });
     showToast('Начните заново — выберите сценарий', 'info');
 }
@@ -2452,6 +2517,8 @@ async function callAIForForm(draft, profession, missing) {
 }
 
 function displayEnhanceResult(result) {
+    var rcol = document.getElementById('resultColumn');
+    if (rcol) rcol.style.display = 'flex';
     lastResult = result.resume;
     lastChanges = result.changes;
     setATSScore(result.score);

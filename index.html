@@ -135,7 +135,7 @@
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 relative z-10">
         <div class="flex flex-col lg:flex-row gap-6 split-layout">
             <div class="w-full lg:w-1/2 flex flex-col gap-5 animate-slide-right">
-                <div class="glass-card rounded-2xl p-5 neon-border" id="scenarioSection">
+                <div class="glass-card rounded-2xl p-5 neon-border" id="scenarioSection" data-stage="0">
                     <label class="flex items-center gap-2 font-display font-semibold text-sm text-gray-300 mb-3">
                         <i data-lucide="route" class="w-4 h-4 text-neon-purple"></i>
                         Выберите сценарий
@@ -156,7 +156,7 @@
                     </div>
                 </div>
 
-                <div class="glass-card rounded-2xl p-5 neon-border" id="fileCard">
+                <div class="glass-card rounded-2xl p-5 neon-border" id="fileCard" data-stage="1">
                     <label class="flex items-center gap-2 font-display font-semibold text-sm text-gray-300 mb-3">
                         <i data-lucide="file-text" class="w-4 h-4 text-neon-purple"></i>
                         Ваше резюме
@@ -176,7 +176,7 @@
                     </div>
                 </div>
 
-                <div class="glass-card rounded-2xl p-5 neon-border" id="scenario1Fields">
+                <div class="glass-card rounded-2xl p-5 neon-border" id="scenario1Fields" data-stage="1">
                     <label class="flex items-center gap-2 font-display font-semibold text-sm text-gray-300 mb-3">
                         <i data-lucide="repeat" class="w-4 h-4 text-neon-cyan"></i>
                         Смена профессии
@@ -189,7 +189,7 @@
                     <p class="text-[11px] text-gray-600 mt-2">Оценку текущего резюме покажет ATS-блок, переносимые навыки заберём из файла и этого поля.</p>
                 </div>
 
-                <div class="glass-card rounded-2xl p-5 neon-border hidden" id="scenario2Fields">
+                <div class="glass-card rounded-2xl p-5 neon-border hidden" id="scenario2Fields" data-stage="1">
                     <label class="flex items-center gap-2 font-display font-semibold text-sm text-gray-300 mb-3">
                         <i data-lucide="wrench" class="w-4 h-4 text-neon-cyan"></i>
                         Правка под текущую профессию
@@ -199,7 +199,7 @@
                     <input id="s2_focus" type="text" placeholder="Что улучшить? (например: опыт, навыки)" class="glass-input w-full rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600 mt-2">
                 </div>
 
-                <div class="glass-card rounded-2xl p-5 neon-border">
+                <div class="glass-card rounded-2xl p-5 neon-border" id="modeCard" data-stage="2">
                     <label class="flex items-center gap-2 font-display font-semibold text-sm text-gray-300 mb-3">
                         <i data-lucide="sparkles" class="w-4 h-4 text-neon-pink"></i>
                         Режим обработки
@@ -236,7 +236,7 @@
                     </div>
                 </div>
 
-                <div class="glass-card rounded-2xl p-5 neon-border">
+                <div class="glass-card rounded-2xl p-5 neon-border" id="jobCard" data-stage="4">
                     <label class="flex items-center gap-2 font-display font-semibold text-sm text-gray-300 mb-3">
                         <i data-lucide="briefcase" class="w-4 h-4 text-neon-cyan"></i>
                         Желаемая должность / Сфера
@@ -244,7 +244,7 @@
                     <input id="jobTitle" type="text" placeholder="Например: Senior Frontend Developer, Product Manager, Data Scientist" class="glass-input w-full rounded-xl p-3.5 text-sm text-gray-200 placeholder-gray-600 focus:ring-1 focus:ring-neon-cyan/30">
                 </div>
 
-                <div class="glass-card rounded-2xl p-5 neon-border">
+                <div class="glass-card rounded-2xl p-5 neon-border" id="platformCard" data-stage="3">
                     <label class="flex items-center gap-2 font-display font-semibold text-sm text-gray-300 mb-3">
                         <i data-lucide="globe" class="w-4 h-4 text-neon-emerald"></i>
                         Платформа оптимизации
@@ -265,7 +265,7 @@
                     </div>
                 </div>
 
-                <div class="glass-card rounded-2xl p-5 neon-border">
+                <div class="glass-card rounded-2xl p-5 neon-border" id="toneCard" data-stage="4">
                     <label class="flex items-center gap-2 font-display font-semibold text-sm text-gray-300 mb-3">
                         <i data-lucide="palette" class="w-4 h-4 text-neon-pink"></i>
                         Тон резюме
@@ -277,7 +277,7 @@
                     </div>
                 </div>
 
-                <div class="glass-card rounded-2xl p-5 neon-border hidden" id="formSection">
+                <div class="glass-card rounded-2xl p-5 neon-border hidden" id="formSection" data-stage="1">
                     <div class="flex items-center justify-between mb-1">
                         <label class="flex items-center gap-2 font-display font-semibold text-sm text-gray-300">
                             <i data-lucide="clipboard-list" class="w-4 h-4 text-neon-emerald"></i>
@@ -330,20 +330,31 @@
                             <textarea id="f_extra" rows="2" placeholder="Дополнительно (переезд, командировки, рекомендации...)" class="glass-input w-full rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600 resize-none mt-2"></textarea>
                         </div>
                     </div>
-                    <button id="formGenerateBtn" onclick="generateFromForm()" class="btn-gradient w-full rounded-xl py-3.5 mt-4 font-display font-bold text-white text-sm tracking-wide flex items-center justify-center gap-2">
-                        <i data-lucide="file-down" class="w-4 h-4"></i>
+                    <p class="text-[11px] text-gray-600 mt-4 text-center">Нажимайте «Далее» — кнопка создания файла будет на последнем шаге.</p>
+                </div>
+
+                <div data-stage="5" id="stage5box">
+                    <p class="text-[11px] text-gray-500 mb-3 text-center">Генерация стоит 100 &#8381; · результат и ATS появятся справа</p>
+                    <button id="enhanceBtn" onclick="enhanceResume()" class="btn-gradient w-full rounded-xl py-4 font-display font-bold text-white text-base tracking-wide flex items-center justify-center gap-3">
+                        <i data-lucide="wand-2" class="w-5 h-5"></i>
+                        <span id="enhanceBtnText">Сформировать резюме</span>
+                        <span id="enhanceBtnCost" class="text-xs opacity-70 font-normal"></span>
+                    </button>
+                    <button id="formGenerateBtn" onclick="generateFromForm()" class="btn-gradient w-full rounded-xl py-4 font-display font-bold text-white text-base tracking-wide flex items-center justify-center gap-3">
+                        <i data-lucide="file-down" class="w-5 h-5"></i>
                         <span>Создать файл по моим данным</span>
+                        <span class="text-xs opacity-70 font-normal">(100 &#8381;)</span>
                     </button>
                 </div>
 
-                <button id="enhanceBtn" onclick="enhanceResume()" class="btn-gradient w-full rounded-xl py-4 font-display font-bold text-white text-base tracking-wide flex items-center justify-center gap-3">
-                    <i data-lucide="wand-2" class="w-5 h-5"></i>
-                    <span id="enhanceBtnText">Сформировать резюме</span>
-                    <span id="enhanceBtnCost" class="text-xs opacity-70 font-normal"></span>
-                </button>
+                <div class="glass-card rounded-2xl p-4 neon-border flex items-center justify-between gap-2" id="stageNav">
+                    <button id="stageBackBtn" onclick="stageBack()" class="glass-input px-5 py-2.5 rounded-xl text-sm text-gray-300 hover:text-white transition-all">Назад</button>
+                    <p class="text-xs text-gray-500 text-center" id="stageIndicator">Шаг 1 из 6 · Сценарий</p>
+                    <button id="stageNextBtn" onclick="stageNext()" class="btn-gradient px-5 py-2.5 rounded-xl text-sm font-medium text-white">Далее</button>
+                </div>
             </div>
 
-            <div class="w-full lg:w-1/2 flex flex-col gap-5" id="resultColumn">
+            <div class="w-full lg:w-1/2 flex flex-col gap-5" id="resultColumn" style="display:none">
                 <div class="glass-card rounded-2xl p-5 neon-border" id="atsSection">
                     <div class="flex items-center gap-2 mb-4">
                         <i data-lucide="bar-chart-3" class="w-4 h-4 text-neon-purple"></i>
