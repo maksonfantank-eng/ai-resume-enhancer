@@ -176,8 +176,8 @@
             </div>
         </div>
 
-        <div class="flex flex-col lg:flex-row gap-6 split-layout">
-            <div class="w-full lg:w-1/2 flex flex-col gap-5 animate-slide-right">
+        <div class="flex flex-col lg:flex-row gap-6 split-layout justify-center" id="splitLayout">
+            <div class="w-full max-w-3xl mx-auto flex flex-col gap-5 animate-slide-right" id="leftColumn">
                 <div class="glass-card rounded-2xl p-5 neon-border" id="fileCard" data-stage="1">
                     <label class="flex items-center gap-2 font-display font-semibold text-sm text-gray-300 mb-3">
                         <i data-lucide="file-text" class="w-4 h-4 text-neon-purple"></i>
@@ -273,16 +273,16 @@
                     </label>
                     <div class="grid grid-cols-2 gap-2" id="platformGrid">
                         <div class="platform-chip active glass-input rounded-xl p-3 text-center text-sm flex items-center justify-center gap-2" data-platform="hh" onclick="togglePlatform(this)">
-                            <span class="text-lg">🇷🇺</span> hh.ru
+                            hh.ru
                         </div>
                         <div class="platform-chip glass-input rounded-xl p-3 text-center text-sm flex items-center justify-center gap-2" data-platform="linkedin" onclick="togglePlatform(this)">
-                            <span class="text-lg">💼</span> LinkedIn
+                            LinkedIn
                         </div>
                         <div class="platform-chip glass-input rounded-xl p-3 text-center text-sm flex items-center justify-center gap-2" data-platform="habr" onclick="togglePlatform(this)">
-                            <span class="text-lg">💻</span> Habr Career
+                            Habr Career
                         </div>
                         <div class="platform-chip glass-input rounded-xl p-3 text-center text-sm flex items-center justify-center gap-2" data-platform="ats" onclick="togglePlatform(this)">
-                            <span class="text-lg">🤖</span> ATS (Workday...)
+                            ATS (Workday...)
                         </div>
                     </div>
                 </div>

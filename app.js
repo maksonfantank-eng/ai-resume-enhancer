@@ -167,6 +167,22 @@ function stageBack() {
     if (currentStage > 0) showStage(currentStage - 1);
 }
 
+// Мастер по центру, результат — две колонки рядом
+function setWizardLayout(isWizard) {
+    var left = document.getElementById('leftColumn');
+    var sl = document.getElementById('splitLayout');
+    if (left) {
+        if (isWizard) {
+            left.classList.remove('lg:w-1/2');
+            left.classList.add('max-w-3xl', 'mx-auto');
+        } else {
+            left.classList.add('lg:w-1/2');
+            left.classList.remove('max-w-3xl', 'mx-auto');
+        }
+    }
+    if (sl) sl.classList.toggle('justify-center', isWizard);
+}
+
 function syncScenarioToJob() {
     var jt = document.getElementById('jobTitle');
     if (!jt) return;
@@ -213,6 +229,7 @@ function resetApp() {
     lastChanges = null;
     var rcol0 = document.getElementById('resultColumn');
     if (rcol0) rcol0.style.display = 'none';
+    setWizardLayout(true);
     var rc = document.getElementById('tabResumeContent');
     if (rc) { rc.textContent = ''; rc.classList.add('hidden'); }
     var cc = document.getElementById('tabChangesContent');
@@ -2521,6 +2538,7 @@ async function callAIForForm(draft, profession, missing) {
 function displayEnhanceResult(result) {
     var rcol = document.getElementById('resultColumn');
     if (rcol) rcol.style.display = 'flex';
+    setWizardLayout(false);
     lastResult = result.resume;
     lastChanges = result.changes;
     setATSScore(result.score);
