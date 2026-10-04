@@ -144,30 +144,21 @@
             </div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div class="scenario-card platform-chip active glass-input rounded-2xl p-6 cursor-pointer text-left" data-scenario="1" onclick="selectScenario(1)">
-                    <div class="flex items-start justify-between mb-4">
-                        <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-neon-purple to-neon-cyan flex items-center justify-center">
-                            <i data-lucide="repeat" class="w-6 h-6 text-white"></i>
-                        </div>
+                    <div class="flex items-start justify-end mb-4">
                         <span class="font-display font-extrabold text-3xl text-white/10">01</span>
                     </div>
                     <p class="font-display font-bold text-white text-base mb-1">Смена профессии</p>
                     <p class="text-xs text-gray-500 leading-relaxed">Другая деятельность или город — адаптируем резюме и заберём переносимые навыки</p>
                 </div>
                 <div class="scenario-card platform-chip glass-input rounded-2xl p-6 cursor-pointer text-left" data-scenario="2" onclick="selectScenario(2)">
-                    <div class="flex items-start justify-between mb-4">
-                        <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-neon-pink to-neon-purple flex items-center justify-center">
-                            <i data-lucide="wrench" class="w-6 h-6 text-white"></i>
-                        </div>
+                    <div class="flex items-start justify-end mb-4">
                         <span class="font-display font-extrabold text-3xl text-white/10">02</span>
                     </div>
                     <p class="font-display font-bold text-white text-base mb-1">Улучшить текущее</p>
                     <p class="text-xs text-gray-500 leading-relaxed">Та же профессия — усилим резюме, подгоним под вакансию</p>
                 </div>
                 <div class="scenario-card platform-chip glass-input rounded-2xl p-6 cursor-pointer text-left" data-scenario="3" onclick="selectScenario(3)">
-                    <div class="flex items-start justify-between mb-4">
-                        <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-neon-emerald to-neon-cyan flex items-center justify-center">
-                            <i data-lucide="pen-line" class="w-6 h-6 text-white"></i>
-                        </div>
+                    <div class="flex items-start justify-end mb-4">
                         <span class="font-display font-extrabold text-3xl text-white/10">03</span>
                     </div>
                     <p class="font-display font-bold text-white text-base mb-1">Создать с нуля</p>
@@ -177,7 +168,7 @@
         </div>
 
         <div class="flex flex-col lg:flex-row gap-6 split-layout justify-center" id="splitLayout">
-            <div class="w-full max-w-3xl mx-auto flex flex-col gap-5 animate-slide-right" id="leftColumn">
+            <div class="w-full flex flex-col gap-5 animate-slide-right" id="leftColumn">
                 <div class="glass-card rounded-2xl p-5 neon-border" id="fileCard" data-stage="1">
                     <label class="flex items-center gap-2 font-display font-semibold text-sm text-gray-300 mb-3">
                         <i data-lucide="file-text" class="w-4 h-4 text-neon-purple"></i>

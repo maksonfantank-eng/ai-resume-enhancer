@@ -171,15 +171,7 @@ function stageBack() {
 function setWizardLayout(isWizard) {
     var left = document.getElementById('leftColumn');
     var sl = document.getElementById('splitLayout');
-    if (left) {
-        if (isWizard) {
-            left.classList.remove('lg:w-1/2');
-            left.classList.add('max-w-3xl', 'mx-auto');
-        } else {
-            left.classList.add('lg:w-1/2');
-            left.classList.remove('max-w-3xl', 'mx-auto');
-        }
-    }
+    if (left) left.classList.toggle('lg:w-1/2', !isWizard);
     if (sl) sl.classList.toggle('justify-center', isWizard);
 }
 
