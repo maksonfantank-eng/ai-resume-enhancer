@@ -135,7 +135,28 @@
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 relative z-10">
         <div class="flex flex-col lg:flex-row gap-6 split-layout">
             <div class="w-full lg:w-1/2 flex flex-col gap-5 animate-slide-right">
-                <div class="glass-card rounded-2xl p-5 neon-border">
+                <div class="glass-card rounded-2xl p-5 neon-border" id="scenarioSection">
+                    <label class="flex items-center gap-2 font-display font-semibold text-sm text-gray-300 mb-3">
+                        <i data-lucide="route" class="w-4 h-4 text-neon-purple"></i>
+                        Выберите сценарий
+                    </label>
+                    <div class="space-y-2">
+                        <div class="scenario-card platform-chip active glass-input rounded-xl p-3 cursor-pointer" data-scenario="1" onclick="selectScenario(1)">
+                            <p class="text-sm text-gray-200 font-medium">1. Смена профессии</p>
+                            <p class="text-[11px] text-gray-500">Другая деятельность или город — адаптируем резюме</p>
+                        </div>
+                        <div class="scenario-card platform-chip glass-input rounded-xl p-3 cursor-pointer" data-scenario="2" onclick="selectScenario(2)">
+                            <p class="text-sm text-gray-200 font-medium">2. Улучшить текущее</p>
+                            <p class="text-[11px] text-gray-500">Та же профессия, вакансия, точечные правки</p>
+                        </div>
+                        <div class="scenario-card platform-chip glass-input rounded-xl p-3 cursor-pointer" data-scenario="3" onclick="selectScenario(3)">
+                            <p class="text-sm text-gray-200 font-medium">3. Создать с нуля</p>
+                            <p class="text-[11px] text-gray-500">Первое резюме — короткая анкета из 5 шагов</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card rounded-2xl p-5 neon-border" id="fileCard">
                     <label class="flex items-center gap-2 font-display font-semibold text-sm text-gray-300 mb-3">
                         <i data-lucide="file-text" class="w-4 h-4 text-neon-purple"></i>
                         Ваше резюме
@@ -153,6 +174,29 @@
                             <i data-lucide="x" class="w-3 h-3"></i> Очистить
                         </button>
                     </div>
+                </div>
+
+                <div class="glass-card rounded-2xl p-5 neon-border" id="scenario1Fields">
+                    <label class="flex items-center gap-2 font-display font-semibold text-sm text-gray-300 mb-3">
+                        <i data-lucide="repeat" class="w-4 h-4 text-neon-cyan"></i>
+                        Смена профессии
+                    </label>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <input id="s1_current" type="text" placeholder="Текущая профессия" class="glass-input rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600">
+                        <input id="s1_target" type="text" placeholder="Целевая профессия *" class="glass-input rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600" oninput="syncScenarioToJob()">
+                    </div>
+                    <textarea id="s1_transfer" rows="2" placeholder="Что забрать из старой профессии (навыки, опыт)..." class="glass-input w-full rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600 resize-none mt-2"></textarea>
+                    <p class="text-[11px] text-gray-600 mt-2">Оценку текущего резюме покажет ATS-блок, переносимые навыки заберём из файла и этого поля.</p>
+                </div>
+
+                <div class="glass-card rounded-2xl p-5 neon-border hidden" id="scenario2Fields">
+                    <label class="flex items-center gap-2 font-display font-semibold text-sm text-gray-300 mb-3">
+                        <i data-lucide="wrench" class="w-4 h-4 text-neon-cyan"></i>
+                        Правка под текущую профессию
+                    </label>
+                    <input id="s2_profession" type="text" placeholder="Ваша профессия" class="glass-input w-full rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600" oninput="syncScenarioToJob()">
+                    <textarea id="s2_vacancy" rows="3" placeholder="Вставьте текст вакансии (если есть) — подгоним резюме под неё" class="glass-input w-full rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600 resize-none mt-2"></textarea>
+                    <input id="s2_focus" type="text" placeholder="Что улучшить? (например: опыт, навыки)" class="glass-input w-full rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600 mt-2">
                 </div>
 
                 <div class="glass-card rounded-2xl p-5 neon-border">
@@ -221,7 +265,19 @@
                     </div>
                 </div>
 
-                <div class="glass-card rounded-2xl p-5 neon-border" id="formSection">
+                <div class="glass-card rounded-2xl p-5 neon-border">
+                    <label class="flex items-center gap-2 font-display font-semibold text-sm text-gray-300 mb-3">
+                        <i data-lucide="palette" class="w-4 h-4 text-neon-pink"></i>
+                        Тон резюме
+                    </label>
+                    <div class="grid grid-cols-3 gap-2" id="toneGrid">
+                        <div class="tone-chip platform-chip active glass-input rounded-xl p-3 text-center text-sm text-gray-300" data-tone="business" onclick="selectToneChip(this)">Деловой</div>
+                        <div class="tone-chip platform-chip glass-input rounded-xl p-3 text-center text-sm text-gray-300" data-tone="creative" onclick="selectToneChip(this)">Креативный</div>
+                        <div class="tone-chip platform-chip glass-input rounded-xl p-3 text-center text-sm text-gray-300" data-tone="concise" onclick="selectToneChip(this)">Лаконичный</div>
+                    </div>
+                </div>
+
+                <div class="glass-card rounded-2xl p-5 neon-border hidden" id="formSection">
                     <div class="flex items-center justify-between mb-1">
                         <label class="flex items-center gap-2 font-display font-semibold text-sm text-gray-300">
                             <i data-lucide="clipboard-list" class="w-4 h-4 text-neon-emerald"></i>
@@ -229,9 +285,16 @@
                         </label>
                     </div>
                     <p class="text-[11px] text-gray-500 mb-4">Заполните что знаете. Обязательно — профессия. Недостающее (навыки, обязанности, образование и т.д.) будет подобрано автоматически под вашу профессию, а файл соберется по шаблону hh.ru.</p>
+                    <div class="flex items-center justify-between mb-3">
+                        <p class="text-xs font-medium text-gray-400" id="formStepIndicator">Шаг 1 из 5</p>
+                        <div class="flex gap-2">
+                            <button id="formBackBtn" onclick="showFormStep(formStep-1)" class="glass-input px-4 py-1.5 rounded-lg text-xs text-gray-300 hover:text-white transition-all">Назад</button>
+                            <button id="formNextBtn" onclick="showFormStep(formStep+1)" class="glass-input px-4 py-1.5 rounded-lg text-xs text-gray-300 hover:text-white transition-all">Далее</button>
+                        </div>
+                    </div>
                     <div class="space-y-4">
-                        <div>
-                            <p class="text-xs font-medium text-neon-purple mb-2">Шаг 1 — Контакты</p>
+                        <div id="fstep1">
+                            <p class="text-xs font-medium text-neon-purple mb-2">Шаг 1 из 5 — Контакты</p>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                 <input id="f_fullName" type="text" placeholder="ФИО полностью" class="glass-input rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600">
                                 <input id="f_birth" type="text" placeholder="Пол, возраст / дата рождения" class="glass-input rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600">
@@ -241,26 +304,29 @@
                                 <input id="f_citizenship" type="text" placeholder="Гражданство" class="glass-input rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600">
                             </div>
                         </div>
-                        <div>
-                            <p class="text-xs font-medium text-neon-cyan mb-2">Шаг 2 — Желаемая должность *</p>
+                        <div id="fstep2" class="hidden">
+                            <p class="text-xs font-medium text-neon-cyan mb-2">Шаг 2 из 5 — Должность</p>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                 <input id="f_profession" type="text" placeholder="Профессия (напр. Frontend-разработчик)" class="glass-input rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600">
                                 <input id="f_salary" type="text" placeholder="Зарплата (напр. 150000)" class="glass-input rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600">
                             </div>
                             <input id="f_employment" type="text" placeholder="Занятость / формат (напр. полная занятость, удалённо)" class="glass-input w-full rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600 mt-2">
                         </div>
-                        <div>
-                            <p class="text-xs font-medium text-neon-pink mb-2">Шаг 3 — Опыт и навыки</p>
-                            <textarea id="f_experience" rows="4" placeholder="Опыт работы (компания, должность, годы, что делали). Можно кратко — детали будут добавлены автоматически" class="glass-input w-full rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600 resize-none"></textarea>
-                            <textarea id="f_skills" rows="2" placeholder="Навыки через запятую (если нет — подберутся автоматически по профессии)" class="glass-input w-full rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600 resize-none mt-2"></textarea>
+                        <div id="fstep3" class="hidden">
+                            <p class="text-xs font-medium text-neon-pink mb-2">Шаг 3 из 5 — Опыт</p>
+                            <textarea id="f_experience" rows="6" placeholder="Опыт работы (компания, должность, годы, что делали). Можно кратко — детали будут добавлены автоматически" class="glass-input w-full rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600 resize-none"></textarea>
                         </div>
-                        <div>
-                            <p class="text-xs font-medium text-neon-emerald mb-2">Шаг 4 — Образование и языки</p>
+                        <div id="fstep4" class="hidden">
+                            <p class="text-xs font-medium text-neon-emerald mb-2">Шаг 4 из 5 — Образование</p>
                             <textarea id="f_education" rows="2" placeholder="Образование (ВУЗ, год, специальность)" class="glass-input w-full rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600 resize-none"></textarea>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
                                 <input id="f_courses" type="text" placeholder="Курсы" class="glass-input rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600">
                                 <input id="f_languages" type="text" placeholder="Языки (напр. Английский B2)" class="glass-input rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600">
                             </div>
+                        </div>
+                        <div id="fstep5" class="hidden">
+                            <p class="text-xs font-medium text-neon-emerald mb-2">Шаг 5 из 5 — Навыки</p>
+                            <textarea id="f_skills" rows="3" placeholder="Навыки через запятую (если нет — подберутся автоматически по профессии)" class="glass-input w-full rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600 resize-none"></textarea>
                             <textarea id="f_extra" rows="2" placeholder="Дополнительно (переезд, командировки, рекомендации...)" class="glass-input w-full rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600 resize-none mt-2"></textarea>
                         </div>
                     </div>
@@ -365,6 +431,9 @@
                         </button>
                         <button onclick="downloadResult('pdf')" class="glass-input px-4 py-2 rounded-lg text-xs font-medium text-gray-300 hover:text-white flex items-center gap-2 transition-all hover:border-neon-purple/40" title="Сохранить как PDF через печать">
                             <i data-lucide="file-text" class="w-3.5 h-3.5"></i> PDF
+                        </button>
+                        <button onclick="resetApp()" class="glass-input px-4 py-2 rounded-lg text-xs font-medium text-gray-300 hover:text-white flex items-center gap-2 transition-all hover:border-neon-purple/40" title="Вернуться на главный экран">
+                            <i data-lucide="home" class="w-3.5 h-3.5"></i> На главный экран
                         </button>
                         <div class="relative ml-auto">
                             <button onclick="toggleToneMenu()" class="glass-input px-4 py-2 rounded-lg text-xs font-medium text-gray-300 hover:text-white flex items-center gap-2 transition-all hover:border-neon-purple/40">
@@ -485,19 +554,19 @@
             <!-- TOP UP FORM -->
             <div id="paymentTopUpForm">
                 <h3 class="font-display font-bold text-lg text-white mb-1">Пополнение баланса</h3>
-                <p class="text-xs text-gray-500 mb-5">Один запрос улучшения резюме стоит <span class="text-neon-emerald font-medium">50 &#8381;</span></p>
+                <p class="text-xs text-gray-500 mb-5">Одно резюме стоит <span class="text-neon-emerald font-medium">100 &#8381;</span></p>
                 <div class="space-y-4">
                     <div class="grid grid-cols-3 gap-2">
-                        <button onclick="selectTopUp(50)" class="topup-btn glass-input rounded-xl p-3 text-center text-sm text-gray-300 hover:text-white transition-all hover:border-neon-purple/40" data-amount="50">50 &#8381;</button>
+                        <button onclick="selectTopUp(100)" class="topup-btn glass-input rounded-xl p-3 text-center text-sm text-gray-300 hover:text-white transition-all hover:border-neon-purple/40 border-neon-emerald/50" data-amount="100">100 &#8381;</button>
                         <button onclick="selectTopUp(150)" class="topup-btn glass-input rounded-xl p-3 text-center text-sm text-gray-300 hover:text-white transition-all hover:border-neon-purple/40" data-amount="150">150 &#8381;</button>
-                        <button onclick="selectTopUp(300)" class="topup-btn glass-input rounded-xl p-3 text-center text-sm text-gray-300 hover:text-white transition-all hover:border-neon-purple/40 border-neon-emerald/50" data-amount="300">300 &#8381;</button>
+                        <button onclick="selectTopUp(300)" class="topup-btn glass-input rounded-xl p-3 text-center text-sm text-gray-300 hover:text-white transition-all hover:border-neon-purple/40" data-amount="300">300 &#8381;</button>
                         <button onclick="selectTopUp(500)" class="topup-btn glass-input rounded-xl p-3 text-center text-sm text-gray-300 hover:text-white transition-all hover:border-neon-purple/40" data-amount="500">500 &#8381;</button>
                         <button onclick="selectTopUp(1000)" class="topup-btn glass-input rounded-xl p-3 text-center text-sm text-gray-300 hover:text-white transition-all hover:border-neon-purple/40" data-amount="1000">1 000 &#8381;</button>
                         <button onclick="selectTopUp(3000)" class="topup-btn glass-input rounded-xl p-3 text-center text-sm text-gray-300 hover:text-white transition-all hover:border-neon-purple/40" data-amount="3000">3 000 &#8381;</button>
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-gray-400 mb-2">Или введите сумму</label>
-                        <input id="customTopUp" type="number" min="50" step="10" placeholder="50" class="glass-input w-full rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600" oninput="document.querySelectorAll('.topup-btn').forEach(function(b){b.classList.remove('border-neon-emerald/50')})">
+                        <input id="customTopUp" type="number" min="100" step="10" placeholder="100" class="glass-input w-full rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600" oninput="document.querySelectorAll('.topup-btn').forEach(function(b){b.classList.remove('border-neon-emerald/50')})">
                     </div>
                     <div class="glass-input rounded-xl p-4 space-y-3">
                         <p class="text-xs font-medium text-gray-400">Способ оплаты</p>
@@ -569,6 +638,15 @@
                         <button onclick="testAdminApiKey()" class="glass-input flex-1 rounded-lg py-2 font-medium text-gray-400 text-xs hover:text-white transition-colors">Тест</button>
                     </div>
                     <div id="adminKeyStatus" class="hidden text-xs text-center py-2 rounded-lg mt-2"></div>
+                </div>
+
+                <div class="glass-input rounded-xl p-4">
+                    <label class="block text-xs font-medium text-gray-400 mb-2">Worker URL (оплата и API-прокси)</label>
+                    <input id="adminWorkerUrl" type="text" placeholder="https://xxx.workers.dev" class="glass-input w-full rounded-lg p-2.5 text-sm text-gray-200 placeholder-gray-600">
+                    <div class="flex gap-2 mt-2">
+                        <button onclick="saveAdminWorkerUrl()" class="btn-gradient flex-1 rounded-lg py-2 font-medium text-white text-xs">Сохранить</button>
+                    </div>
+                    <div id="adminWorkerStatus" class="hidden text-xs text-center py-2 rounded-lg mt-2"></div>
                 </div>
 
                 <!-- USERS TABLE -->

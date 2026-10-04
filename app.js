@@ -5,6 +5,9 @@ var apiKey = localStorage.getItem('resume_ai_key') || '';
 var apiProvider = localStorage.getItem('resume_ai_provider') || 'atria';
 var apiModel = localStorage.getItem('resume_ai_model') || 'Atria-Dawn-Preview';
 var PROXY_URL = localStorage.getItem('resume_ai_proxy') || '';
+var WORKER_URL = (localStorage.getItem('resume_worker_url') || '').replace(/\/$/, '');
+var currentScenario = 1;
+var formStep = 1;
 var selectedPlatform = 'hh';
 var currentTone = 'business';
 var isProcessing = false;
@@ -15,7 +18,7 @@ var lastChanges = null;
 var currentUser = null;
 try { currentUser = JSON.parse(localStorage.getItem('resume_current_user') || 'null'); } catch (e) { currentUser = null; }
 var pendingRegistration = null;
-var COST_PER_REQUEST = 50;
+var COST_PER_REQUEST = 100;
 
 function getUsers() {
     return JSON.parse(localStorage.getItem('resume_users') || '[]');
@@ -46,6 +49,8 @@ function isAdmin() { return currentUser && currentUser.role === 'admin'; }
 document.addEventListener('DOMContentLoaded', function() {
     lucide.createIcons();
     updateAuthUI();
+    checkPaymentReturn();
+    selectScenario(1);
 });
 
 // ===================== UTILITY =====================
@@ -66,6 +71,98 @@ function clearUploadedFile() {
     var disp = document.getElementById('fileNameDisplay');
     if (disp) { disp.textContent = ''; disp.classList.add('hidden'); }
     updateCharCount();
+}
+
+// ===================== SCENARIOS (userflow) =====================
+// 1 — смена профессии, 2 — правка текущего (+ вакансия), 3 — анкета с нуля.
+function selectScenario(n) {
+    currentScenario = n;
+    document.querySelectorAll('.scenario-card').forEach(function(c) {
+        c.classList.toggle('active', c.dataset.scenario == String(n));
+    });
+    var fileCard = document.getElementById('fileCard');
+    var s1 = document.getElementById('scenario1Fields');
+    var s2 = document.getElementById('scenario2Fields');
+    var form = document.getElementById('formSection');
+    var genBtn = document.getElementById('enhanceBtn');
+    if (fileCard) fileCard.classList.toggle('hidden', n === 3);
+    if (s1) s1.classList.toggle('hidden', n !== 1);
+    if (s2) s2.classList.toggle('hidden', n !== 2);
+    if (form) form.classList.toggle('hidden', n !== 3);
+    if (genBtn) genBtn.classList.toggle('hidden', n === 3);
+    if (n === 1) {
+        var t = document.querySelector('input[name="promptMode"][value="tailor"]');
+        if (t) t.checked = true;
+    }
+    if (n === 3) {
+        var s = document.querySelector('input[name="promptMode"][value="standardize"]');
+        if (s) s.checked = true;
+        showFormStep(1);
+    }
+    syncScenarioToJob();
+    lucide.createIcons();
+}
+
+function syncScenarioToJob() {
+    var jt = document.getElementById('jobTitle');
+    if (!jt) return;
+    if (currentScenario === 1) { var t = getFormVal('s1_target'); if (t) jt.value = t; }
+    else if (currentScenario === 2) { var p = getFormVal('s2_profession'); if (p) jt.value = p; }
+    else if (currentScenario === 3) { var f = getFormVal('f_profession'); if (f) jt.value = f; }
+}
+
+function showFormStep(n) {
+    formStep = Math.min(5, Math.max(1, n));
+    for (var i = 1; i <= 5; i++) {
+        var el = document.getElementById('fstep' + i);
+        if (el) el.classList.toggle('hidden', i !== formStep);
+    }
+    var ind = document.getElementById('formStepIndicator');
+    if (ind) ind.textContent = 'Шаг ' + formStep + ' из 5';
+    var back = document.getElementById('formBackBtn');
+    var next = document.getElementById('formNextBtn');
+    if (back) back.disabled = formStep === 1;
+    if (next) next.classList.toggle('hidden', formStep === 5);
+}
+
+function selectToneChip(el) {
+    document.querySelectorAll('.tone-chip').forEach(function(c) { c.classList.remove('active'); });
+    el.classList.add('active');
+    changeTone(el.dataset.tone);
+}
+
+// Возврат на главный экран: сброс формы, файла и результата
+function resetApp() {
+    ['resumeInput', 'jobTitle', 's1_current', 's1_target', 's1_transfer',
+     's2_profession', 's2_vacancy', 's2_focus',
+     'f_fullName', 'f_birth', 'f_phone', 'f_email', 'f_city', 'f_citizenship',
+     'f_profession', 'f_salary', 'f_employment', 'f_experience', 'f_skills',
+     'f_education', 'f_courses', 'f_languages', 'f_extra'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    var fu = document.getElementById('fileUpload');
+    if (fu) fu.value = '';
+    var disp = document.getElementById('fileNameDisplay');
+    if (disp) { disp.textContent = ''; disp.classList.add('hidden'); }
+    lastResult = null;
+    lastChanges = null;
+    var rc = document.getElementById('tabResumeContent');
+    if (rc) { rc.textContent = ''; rc.classList.add('hidden'); }
+    var cc = document.getElementById('tabChangesContent');
+    if (cc) { cc.innerHTML = ''; cc.classList.add('hidden'); }
+    document.getElementById('actionButtons').classList.add('hidden');
+    document.getElementById('skeletonLoader').classList.add('hidden');
+    document.getElementById('tabPlaceholder').classList.remove('hidden');
+    document.getElementById('atsScoreBefore').textContent = '--';
+    document.getElementById('atsScoreAfter').textContent = '--';
+    document.getElementById('atsRingBefore').style.strokeDashoffset = '283';
+    document.getElementById('atsRingAfter').style.strokeDashoffset = '283';
+    updateCharCount();
+    switchTab('resume');
+    showFormStep(1);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    showToast('Начните заново — выберите сценарий', 'info');
 }
 
 function getSelectedPromptMode() {
@@ -283,7 +380,7 @@ function showProfile() {
 }
 
 // ===================== PAYMENT =====================
-var selectedTopUpAmount = 50;
+var selectedTopUpAmount = 100;
 var selectedPayMethod = 'card';
 
 function openPaymentModal() {
@@ -294,9 +391,9 @@ function openPaymentModal() {
     document.getElementById('paymentSuccessForm').classList.add('hidden');
     document.getElementById('paymentError').classList.add('hidden');
     document.getElementById('customTopUp').value = '';
-    selectedTopUpAmount = 50;
+    selectedTopUpAmount = 100;
     document.querySelectorAll('.topup-btn').forEach(function(b) {
-        b.classList.toggle('border-neon-emerald/50', b.dataset.amount === '50');
+        b.classList.toggle('border-neon-emerald/50', b.dataset.amount === '100');
     });
 }
 
@@ -325,21 +422,79 @@ function processPayment() {
     var amount = customVal ? parseInt(customVal) : selectedTopUpAmount;
     var errEl = document.getElementById('paymentError');
     errEl.classList.add('hidden');
-    if (!amount || amount < 50) {
-        errEl.textContent = '\u041c\u0438\u043d\u0438\u043c\u0430\u043b\u044c\u043d\u0430\u044f \u0441\u0443\u043c\u043c\u0430 \u043e\u043f\u043b\u0430\u0442\u044b \u2014 50 \u20BD';
+    if (!amount || amount < 100) {
+        errEl.textContent = '\u041c\u0438\u043d\u0438\u043c\u0430\u043b\u044c\u043d\u0430\u044f \u0441\u0443\u043c\u043c\u0430 \u043e\u043f\u043b\u0430\u0442\u044b \u2014 100 \u20BD';
+        errEl.classList.remove('hidden');
+        return;
+    }
+    if (!WORKER_URL) {
+        errEl.textContent = '\u041e\u043d\u043b\u0430\u0439\u043d-\u043e\u043f\u043b\u0430\u0442\u0430 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0430\u0435\u0442\u0441\u044f. \u041f\u043e\u043f\u0440\u043e\u0431\u0443\u0439\u0442\u0435 \u043f\u043e\u0437\u0436\u0435.';
         errEl.classList.remove('hidden');
         return;
     }
     document.getElementById('paymentTopUpForm').classList.add('hidden');
     document.getElementById('paymentProcessingForm').classList.remove('hidden');
-    setTimeout(function() {
-        var newBalance = updateUserBalance(currentUser.email, amount);
+    fetch(WORKER_URL + '/create-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            amount: amount,
+            email: currentUser ? currentUser.email : '',
+            returnUrl: window.location.origin + window.location.pathname
+        })
+    }).then(function(r) {
+        return r.json().then(function(d) { return { ok: r.ok, d: d }; });
+    }).then(function(res) {
+        if (res.ok && res.d && res.d.confirmation_url) {
+            window.location.href = res.d.confirmation_url;
+        } else {
+            throw new Error((res.d && res.d.error) || 'payment_error');
+        }
+    }).catch(function(err) {
+        console.error(err);
         document.getElementById('paymentProcessingForm').classList.add('hidden');
-        document.getElementById('paymentSuccessForm').classList.remove('hidden');
-        document.getElementById('paidAmount').textContent = amount;
-        document.getElementById('newBalance').textContent = newBalance + ' \u20BD';
-        updateAuthUI();
-    }, 2000);
+        document.getElementById('paymentTopUpForm').classList.remove('hidden');
+        errEl.textContent = '\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0441\u043e\u0437\u0434\u0430\u0442\u044c \u043f\u043b\u0430\u0442\u0451\u0436. \u041f\u043e\u043f\u0440\u043e\u0431\u0443\u0439\u0442\u0435 \u043f\u043e\u0437\u0436\u0435.';
+        errEl.classList.remove('hidden');
+    });
+}
+
+// После возврата с страницы ЮKassa (?payment_id=...) проверяем оплату
+// через воркер и только при статусе succeeded начисляем баланс.
+function checkPaymentReturn() {
+    var m = window.location.search.match(/[?&]payment_id=([^&]+)/);
+    if (!m) return;
+    var pid = decodeURIComponent(m[1]);
+    if (window.history && window.history.replaceState) {
+        window.history.replaceState({}, '', window.location.pathname);
+    }
+    if (!WORKER_URL || !currentUser) {
+        showToast('\u0412\u043e\u0439\u0434\u0438\u0442\u0435, \u0447\u0442\u043e\u0431\u044b \u0437\u0430\u0447\u0438\u0441\u043b\u0438\u0442\u044c \u043e\u043f\u043b\u0430\u0442\u0443', 'error');
+        openAuthModal('login');
+        return;
+    }
+    showToast('\u041f\u0440\u043e\u0432\u0435\u0440\u044f\u0435\u043c \u043e\u043f\u043b\u0430\u0442\u0443...', 'info');
+    fetch(WORKER_URL + '/check-payment?payment_id=' + encodeURIComponent(pid))
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            if (d && d.paid) {
+                var sum = Math.floor(parseFloat(d.amount) || 0);
+                var newBalance = updateUserBalance(currentUser.email, sum);
+                updateAuthUI();
+                document.getElementById('paymentModal').classList.remove('hidden');
+                document.getElementById('paymentTopUpForm').classList.add('hidden');
+                document.getElementById('paymentProcessingForm').classList.add('hidden');
+                document.getElementById('paymentSuccessForm').classList.remove('hidden');
+                document.getElementById('paidAmount').textContent = sum;
+                document.getElementById('newBalance').textContent = newBalance + ' \u20BD';
+            } else {
+                showToast('\u041e\u043f\u043b\u0430\u0442\u0430 \u043d\u0435 \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043d\u0430', 'error');
+            }
+        })
+        .catch(function(err) {
+            console.error(err);
+            showToast('\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u043f\u0440\u043e\u0432\u0435\u0440\u0438\u0442\u044c \u043e\u043f\u043b\u0430\u0442\u0443', 'error');
+        });
 }
 
 // ===================== ADMIN PANEL =====================
@@ -348,6 +503,7 @@ function openAdminPanel() {
     document.getElementById('adminModal').classList.remove('hidden');
     var savedKey = localStorage.getItem('resume_ai_key') || '';
     document.getElementById('adminApiKey').value = savedKey;
+    document.getElementById('adminWorkerUrl').value = localStorage.getItem('resume_worker_url') || '';
     loadUsersList();
     loadStats();
 }
@@ -370,6 +526,18 @@ function saveAdminApiKey() {
         status.classList.remove('hidden');
         setTimeout(function() { status.classList.add('hidden'); }, 2000);
     }
+}
+
+function saveAdminWorkerUrl() {
+    var v = document.getElementById('adminWorkerUrl').value.trim().replace(/\/$/, '');
+    WORKER_URL = v;
+    if (v) localStorage.setItem('resume_worker_url', v);
+    else localStorage.removeItem('resume_worker_url');
+    var status = document.getElementById('adminWorkerStatus');
+    status.className = 'text-xs text-center py-2 rounded-lg bg-neon-emerald/10 text-neon-emerald';
+    status.textContent = '\u0421\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u043e!';
+    status.classList.remove('hidden');
+    setTimeout(function() { status.classList.add('hidden'); }, 2000);
 }
 
 function testAdminApiKey() {
@@ -517,7 +685,7 @@ function updateAuthUI() {
             if (costEl) costEl.textContent = '(Admin \u2014 \u0431\u0435\u0441\u043f\u043b\u0430\u0442\u043d\u043e)';
         } else {
             if (adminBtn) adminBtn.classList.add('hidden');
-            if (costEl) costEl.textContent = '(\u0441\u0442\u043e\u0438\u043c\u043e\u0441\u0442\u044c: 50 \u20BD)';
+            if (costEl) costEl.textContent = '(\u0441\u0442\u043e\u0438\u043c\u043e\u0441\u0442\u044c: 100 \u20BD)';
         }
     } else {
         if (loggedOut) loggedOut.classList.remove('hidden');
@@ -1968,6 +2136,29 @@ function parseAIResponse(text) {
 async function enhanceResume() {
     var resume = document.getElementById('resumeInput').value.trim();
     var jobTitle = document.getElementById('jobTitle').value.trim();
+    // Данные сценариев userflow добавляем к тексту для обработки
+    var scExtra = [];
+    if (currentScenario === 1) {
+        var s1c = getFormVal('s1_current'), s1t = getFormVal('s1_target'), s1tr = getFormVal('s1_transfer');
+        if (s1t) { jobTitle = s1t; document.getElementById('jobTitle').value = s1t; }
+        if (s1c) scExtra.push('Текущая профессия: ' + s1c);
+        if (s1t) scExtra.push('Целевая профессия: ' + s1t);
+        if (s1tr) scExtra.push('Переносимые навыки: ' + s1tr);
+        scExtra.push('Задача: адаптировать резюме под смену профессии.');
+        var tailorRadio = document.querySelector('input[name="promptMode"][value="tailor"]');
+        if (tailorRadio) tailorRadio.checked = true;
+    } else if (currentScenario === 2) {
+        var s2p = getFormVal('s2_profession');
+        if (s2p) { jobTitle = s2p; document.getElementById('jobTitle').value = s2p; }
+        var s2v = getFormVal('s2_vacancy'), s2f = getFormVal('s2_focus');
+        if (s2v) {
+            scExtra.push('Текст вакансии:\n' + s2v);
+            var tailorRadio2 = document.querySelector('input[name="promptMode"][value="tailor"]');
+            if (tailorRadio2) tailorRadio2.checked = true;
+        }
+        if (s2f) scExtra.push('Что улучшить: ' + s2f);
+    }
+    if (scExtra.length) resume = resume + '\n\n' + scExtra.join('\n');
     if (!resume) { showToast('\u0417\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u0435 \u0444\u0430\u0439\u043b \u0440\u0435\u0437\u044e\u043c\u0435', 'error'); return; }
     if (resume.length < 50) { showToast('\u0420\u0435\u0437\u044e\u043c\u0435 \u0441\u043b\u0438\u0448\u043a\u043e\u043c \u043a\u043e\u0440\u043e\u0442\u043a\u043e\u0435 (\u043c\u0438\u043d. 50 \u0441\u0438\u043c\u0432\u043e\u043b\u043e\u0432)', 'error'); return; }
     if (isProcessing) return;
