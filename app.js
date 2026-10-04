@@ -122,10 +122,16 @@ function showStage(n) {
         }
         if (st === 5) {
             show = true;
+            var comp = isStage5Complete();
             var eb = document.getElementById('enhanceBtn');
             var fb = document.getElementById('formGenerateBtn');
-            if (eb) eb.classList.toggle('hidden', currentScenario === 3);
-            if (fb) fb.classList.toggle('hidden', currentScenario !== 3);
+            if (eb) eb.classList.toggle('hidden', currentScenario === 3 || !comp.ok);
+            if (fb) fb.classList.toggle('hidden', currentScenario !== 3 || !comp.ok);
+            var hint = document.getElementById('incompleteHint');
+            if (hint) {
+                hint.classList.toggle('hidden', comp.ok);
+                if (!comp.ok) hint.textContent = 'Осталось заполнить: ' + comp.missing.join(', ');
+            }
         }
         el.classList.toggle('hidden', !show);
     });
@@ -165,6 +171,35 @@ function stageNext() {
 
 function stageBack() {
     if (currentStage > 0) showStage(currentStage - 1);
+}
+
+// Кнопка генерации видна только когда заполнены ВСЕ данные сценария
+function isStage5Complete() {
+    var missing = [];
+    function need(id, label) { if (!getFormVal(id)) missing.push(label); }
+    if (currentScenario === 3) {
+        need('f_fullName', 'ФИО'); need('f_birth', 'пол и возраст');
+        need('f_phone', 'телефон'); need('f_email', 'email');
+        need('f_city', 'город'); need('f_citizenship', 'гражданство');
+        need('f_profession', 'профессию'); need('f_salary', 'зарплату');
+        need('f_employment', 'занятость'); need('f_experience', 'опыт');
+        need('f_skills', 'навыки'); need('f_education', 'образование');
+        need('f_courses', 'курсы'); need('f_languages', 'языки');
+        need('f_extra', 'доп. информацию');
+    } else {
+        var txt = (document.getElementById('resumeInput').value || '').trim();
+        if (txt.length < 50) missing.push('файл резюме');
+        if (currentScenario === 1) {
+            need('s1_current', 'текущую профессию');
+            need('s1_target', 'целевую профессию');
+            need('s1_transfer', 'переносимые навыки');
+        } else {
+            need('s2_profession', 'профессию');
+            need('s2_vacancy', 'текст вакансии');
+            need('s2_focus', 'что улучшить');
+        }
+    }
+    return { ok: missing.length === 0, missing: missing };
 }
 
 // Мастер по центру, результат — две колонки рядом
